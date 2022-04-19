@@ -1,0 +1,6 @@
+[submodule "libs/slang"]
+	path = libs/slang
+	url = https://github.com/MikePopoloski/slang.git
+[submodule "libs/lspcpp"]
+	path = libs/lspcpp
+	url = https://github.com/kuafuwang/LspCpp.git
