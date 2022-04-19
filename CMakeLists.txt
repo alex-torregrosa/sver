@@ -17,3 +17,4 @@ add_executable(sver src/main.cpp)
 
 target_link_libraries(sver PRIVATE slangcompiler)
 target_link_libraries(sver PRIVATE lspcpp)
+target_include_directories(sver PRIVATE ${LSPCPP_INCLUDE_DIR})
