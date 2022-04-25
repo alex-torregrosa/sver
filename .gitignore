@@ -34,3 +34,4 @@
 # Cmake build directory
 build
 clangd_out.log
+.cache

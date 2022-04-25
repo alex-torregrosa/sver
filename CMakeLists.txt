@@ -5,6 +5,8 @@ project(sver VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Include slang, disabling the test compilation
 set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "Include tests in slang build")
 add_subdirectory(libs/slang)
