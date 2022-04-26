@@ -10,12 +10,18 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Include slang, disabling the test compilation
 set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "Include tests in slang build")
 add_subdirectory(libs/slang)
+# Disable slang targets
+set_target_properties(driver rewriter unittests slangruntime PROPERTIES EXCLUDE_FROM_ALL 1 EXCLUDE_FROM_DEFAULT_BUILD 1)
 
 # Build lspcpp library
 add_subdirectory(libs/lspcpp)
 
+set(SOURCES 
+    src/main.cpp
+    src/serverHandlers.cpp
+)
 # The real exec
-add_executable(sver src/main.cpp)
+add_executable(sver ${SOURCES})
 
 target_link_libraries(sver PRIVATE slangcompiler)
 target_link_libraries(sver PRIVATE lspcpp)
