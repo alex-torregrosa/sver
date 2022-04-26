@@ -11,9 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "Include tests in slang build")
 add_subdirectory(libs/slang)
 # Disable slang targets
-if(TARGET driver)
-set_target_properties(driver rewriter unittests slangruntime PROPERTIES EXCLUDE_FROM_ALL 1 EXCLUDE_FROM_DEFAULT_BUILD 1)
-endif()
+set_target_properties(driver rewriter slangruntime PROPERTIES EXCLUDE_FROM_ALL 1 EXCLUDE_FROM_DEFAULT_BUILD 1)
 
 # Build lspcpp library
 add_subdirectory(libs/lspcpp)
