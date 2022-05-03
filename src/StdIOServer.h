@@ -8,6 +8,7 @@
 #include "LibLsp/lsp/general/lsTextDocumentClientCapabilities.h"
 #include "LibLsp/lsp/textDocument/declaration_definition.h"
 
+#include "DiagnosticParser.h"
 #include "LibLsp/JsonRpc/Endpoint.h"
 #include "LibLsp/JsonRpc/RemoteEndPoint.h"
 #include "LibLsp/JsonRpc/stream.h"
@@ -18,7 +19,7 @@ class StdIOServer {
 public:
   StdIOServer()
       : remote_end_point_(protocol_json_handler, endpoint, _log),
-        handlers(_log) {
+        handlers(_log, remote_end_point_) {
 
     remote_end_point_.registerHandler([&](const td_initialize::request &req) {
       return handlers.initializeHandler(req);

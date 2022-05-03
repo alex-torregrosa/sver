@@ -19,6 +19,7 @@ add_subdirectory(libs/lspcpp)
 set(SOURCES 
     src/main.cpp
     src/serverHandlers.cpp
+    src/DiagnosticParser.cpp
 )
 # The real exec
 add_executable(sver ${SOURCES})
