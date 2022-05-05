@@ -8,13 +8,16 @@
 DiagnosticParser::DiagnosticParser(lsp::Log &log) : logger(log) {}
 
 void DiagnosticParser::clearDiagnostics() { diagnostics.clear(); }
-const std::vector<lsDiagnostic> &DiagnosticParser::getDiagnostics() {
+
+const std::map<std::string_view, std::vector<lsDiagnostic>> &
+DiagnosticParser::getDiagnostics() {
   return diagnostics;
 }
 
 void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
   std::stringstream msg;
   auto sm = this->sourceManager;
+  auto filename = sm->getFileName(diagnostic.location);
   int line = sm->getLineNumber(diagnostic.location);
   int col = sm->getColumnNumber(diagnostic.location);
 
@@ -25,7 +28,7 @@ void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
 
   msg << getSeverityString(diagnostic.severity) << ": ";
   msg << diagnostic.formattedMessage;
-  msg << " @ L" << line << ", C" << col;
+  msg << " @ L" << line << ", C" << col << std::endl;
   logger.info(msg.str());
 
   lsDiagnostic lsp_diagnostic;
@@ -66,6 +69,11 @@ void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
     lsp_diagnostic.range.end.line = e_line - 1;
   }
 
-  // Write diag to the array
-  diagnostics.push_back(lsp_diagnostic);
+  // Write diag to the diagnostics map
+  auto res = diagnostics.find(filename);
+  if (res == diagnostics.end()) {
+    // Add new Entry
+    diagnostics[filename].push_back(lsp_diagnostic);
+  } else
+    diagnostics[filename].push_back(lsp_diagnostic);
 }
