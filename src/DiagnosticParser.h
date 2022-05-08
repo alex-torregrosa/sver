@@ -13,9 +13,9 @@ public:
   void report(const slang::ReportedDiagnostic &diagnostic);
 
   void clearDiagnostics();
-  const std::map<std::string_view, std::vector<lsDiagnostic>> &getDiagnostics();
+  const std::map<std::string, std::vector<lsDiagnostic>> &getDiagnostics();
 
 private:
   lsp::Log &logger;
-  std::map<std::string_view, std::vector<lsDiagnostic>> diagnostics;
+  std::map<std::string, std::vector<lsDiagnostic>> diagnostics;
 };

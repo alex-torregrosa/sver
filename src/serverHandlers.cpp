@@ -2,6 +2,7 @@
 #include "DiagnosticParser.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "LibLsp/lsp/lsDocumentUri.h"
+#include "LibLsp/lsp/lsp_diagnostic.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
 #include "slang/text/SourceLocation.h"
 #include <fmt/core.h>
@@ -103,12 +104,28 @@ void ServerHandlers::updateDiagnostics() {
   // Create the PublishDiagnostics message
   Notify_TextDocumentPublishDiagnostics::notify pub;
   auto &pub_params = pub.params;
-  for (auto &&[filename, diagnostics] : parser->getDiagnostics()) {
-    logger.info(fmt::format("Sending diagnostics for file: {}", filename));
-    pub_params.uri.SetPath(AbsolutePath(std::string(filename)));
-    pub_params.diagnostics = diagnostics;
-  }
 
-  // Send the diagnostics to the client
-  remote.send(pub);
+  std::vector<lsDiagnostic> empty_list;
+  auto& diagnostics = parser->getDiagnostics();
+
+  // Iterate all the known open files
+  // TODO: Tight now we use parsed_files, which may contain dynamically loaded
+  // files. It should be substituted by another array containing only the 
+  // files known to be open by the client
+  for (auto &&[filename, tree] : parsed_files) {
+    pub_params.uri.SetPath(AbsolutePath(std::string(filename)));
+    auto res = diagnostics.find(filename);
+
+    // Does this file have diagnostics? Add them to the message
+    if(res != diagnostics.end()) {
+        pub_params.diagnostics = res->second;
+    }
+    else {
+        // Otherwise, clear the diagnostics for the file
+        pub_params.diagnostics = empty_list;
+    }
+    logger.info(fmt::format("Sending diagnostics for file: {}", filename));
+    // Send the diagnostics to the client
+    remote.send(pub);
+  }
 }
