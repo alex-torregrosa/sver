@@ -78,5 +78,5 @@ void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
     // Add new Entry
     diagnostics[filename].push_back(lsp_diagnostic);
   } else
-    diagnostics[filename].push_back(lsp_diagnostic);
+    res->second.push_back(lsp_diagnostic);
 }

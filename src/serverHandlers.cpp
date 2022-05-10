@@ -16,7 +16,6 @@ ServerHandlers::ServerHandlers(lsp::Log &log, RemoteEndPoint &remote_end_point)
   options.set(coptions);
   log.info("Initializing ServerHandlers\n");
   compilation = nullptr;
-
 }
 
 td_initialize::response
@@ -71,22 +70,26 @@ void ServerHandlers::didModifyHandler(
   logger.info("Modified file: " + path.path);
 
   // Create a buffer from the new full content
-  int latestChange = params.contentChanges.size()-1;
-  auto& latestContent = params.contentChanges[latestChange].text;
+  int latestChange = params.contentChanges.size() - 1;
+  auto &latestContent = params.contentChanges[latestChange].text;
   sources.modifyFile(path, latestContent);
 
-  // parsed_files[path.path] = slang::SyntaxTree::fromBuffer(buffer, sm, options);
-   updateDiagnostics();
+  // parsed_files[path.path] = slang::SyntaxTree::fromBuffer(buffer, sm,
+  // options);
+  updateDiagnostics();
 }
 
 void ServerHandlers::updateDiagnostics() {
   // Rebuild the whole compilation unit
   if (compilation)
-    delete compilation;
-  compilation = new slang::Compilation(options);
+    compilation.reset();
+  
+  // Recompile the design
+  compilation = sources.compile();
 
-  auto sm = sources.buildSourceManager();
-  // recreate
+  std::shared_ptr<slang::SourceManager> sm = sources.getSourceManager();
+
+  // Recreate diagnostic tree
   slang::DiagnosticEngine engine(*sm);
   engine.setDefaultWarnings();
   auto parser = std::make_shared<DiagnosticParser>(logger);
@@ -94,12 +97,6 @@ void ServerHandlers::updateDiagnostics() {
 
   // Clear the previous diagnostics list
   parser->clearDiagnostics();
-
-  // Add all the parsed files
-  for (auto &buffer : sources.getBuffers()) {
-    auto tree = slang::SyntaxTree::fromBuffer(buffer, *sm, options);
-    compilation->addSyntaxTree(tree);
-  }
 
   // Get diagnostics and feed them to the parser
   auto &diags = compilation->getAllDiagnostics();
@@ -118,7 +115,7 @@ void ServerHandlers::updateDiagnostics() {
   // TODO: Tight now we use parsed_files, which may contain dynamically loaded
   // files. It should be substituted by another array containing only the
   // files known to be open by the client
-  for (auto & filename : sources.getUserFiles()) {
+  for (auto &filename : sources.getUserFiles()) {
     pub_params.uri.SetPath(AbsolutePath(filename));
     auto res = diagnostics.find(filename);
 

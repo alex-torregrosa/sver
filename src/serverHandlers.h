@@ -23,6 +23,6 @@ private:
   RemoteEndPoint &remote;
   slang::CompilationOptions coptions;
   slang::Bag options;
-  slang::Compilation *compilation;
+  std::shared_ptr<slang::Compilation> compilation;
   ProjectSources sources;
 };
