@@ -30,6 +30,12 @@ public:
           handlers.didOpenHandler(notify);
         });
 
+    remote_end_point_.registerHandler(
+        [&](Notify_TextDocumentDidChange::notify &notify) {
+          handlers.didModifyHandler(notify);
+        });
+
+
     remote_end_point_.registerHandler([&](Notify_Exit::notify &notify) {
       remote_end_point_.Stop();
       esc_event.notify(std::make_unique<bool>(true));

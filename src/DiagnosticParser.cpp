@@ -74,7 +74,6 @@ void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
 
   // Write diag to the diagnostics map
   auto res = diagnostics.find(filename);
-  logger.info(fmt::format("Processed diagnostics for {}", filename));
   if (res == diagnostics.end()) {
     // Add new Entry
     diagnostics[filename].push_back(lsp_diagnostic);

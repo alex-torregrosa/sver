@@ -17,10 +17,6 @@ ServerHandlers::ServerHandlers(lsp::Log &log, RemoteEndPoint &remote_end_point)
   log.info("Initializing ServerHandlers\n");
   compilation = nullptr;
 
-  diagEngine = new slang::DiagnosticEngine(sm);
-  diagEngine->setDefaultWarnings();
-  parser = std::make_shared<DiagnosticParser>(log);
-  diagEngine->addClient(parser);
 }
 
 td_initialize::response
@@ -62,24 +58,25 @@ void ServerHandlers::didOpenHandler(
   AbsolutePath path = params.textDocument.uri.GetAbsolutePath();
   logger.info("Opened file in: " + path.path);
 
-  auto stored_syn = parsed_files.find(path.path);
-  if (stored_syn != parsed_files.end()) {
-    // File already parsed??
-    // Release the pointer to the SyntaxTree
-    stored_syn->second.reset();
-  }
-
   // Create a SourceBuffer from the original file
-  slang::SourceBuffer buffer = sm.readSource(path.path);
-  if (!buffer) {
-    logger.error(fmt::format(" File '{}' not found", path.path));
-    return;
-  }
-
-  // Parse just that file and add it to the compilation
-  parsed_files[path.path] = slang::SyntaxTree::fromBuffer(buffer, sm, options);
+  sources.addFile(path);
 
   updateDiagnostics();
+}
+
+void ServerHandlers::didModifyHandler(
+    Notify_TextDocumentDidChange::notify &notify) {
+  auto &params = notify.params;
+  AbsolutePath path = params.textDocument.uri.GetAbsolutePath();
+  logger.info("Modified file: " + path.path);
+
+  // Create a buffer from the new full content
+  int latestChange = params.contentChanges.size()-1;
+  auto& latestContent = params.contentChanges[latestChange].text;
+  sources.modifyFile(path, latestContent);
+
+  // parsed_files[path.path] = slang::SyntaxTree::fromBuffer(buffer, sm, options);
+   updateDiagnostics();
 }
 
 void ServerHandlers::updateDiagnostics() {
@@ -88,17 +85,26 @@ void ServerHandlers::updateDiagnostics() {
     delete compilation;
   compilation = new slang::Compilation(options);
 
+  auto sm = sources.buildSourceManager();
+  // recreate
+  slang::DiagnosticEngine engine(*sm);
+  engine.setDefaultWarnings();
+  auto parser = std::make_shared<DiagnosticParser>(logger);
+  engine.addClient(parser);
+
   // Clear the previous diagnostics list
   parser->clearDiagnostics();
 
   // Add all the parsed files
-  for (auto &&[pathname, tree] : parsed_files)
+  for (auto &buffer : sources.getBuffers()) {
+    auto tree = slang::SyntaxTree::fromBuffer(buffer, *sm, options);
     compilation->addSyntaxTree(tree);
+  }
 
   // Get diagnostics and feed them to the parser
   auto &diags = compilation->getAllDiagnostics();
   for (auto &diag : diags) {
-    diagEngine->issue(diag);
+    engine.issue(diag);
   }
 
   // Create the PublishDiagnostics message
@@ -106,23 +112,22 @@ void ServerHandlers::updateDiagnostics() {
   auto &pub_params = pub.params;
 
   std::vector<lsDiagnostic> empty_list;
-  auto& diagnostics = parser->getDiagnostics();
+  auto &diagnostics = parser->getDiagnostics();
 
   // Iterate all the known open files
   // TODO: Tight now we use parsed_files, which may contain dynamically loaded
-  // files. It should be substituted by another array containing only the 
+  // files. It should be substituted by another array containing only the
   // files known to be open by the client
-  for (auto &&[filename, tree] : parsed_files) {
-    pub_params.uri.SetPath(AbsolutePath(std::string(filename)));
+  for (auto & filename : sources.getUserFiles()) {
+    pub_params.uri.SetPath(AbsolutePath(filename));
     auto res = diagnostics.find(filename);
 
     // Does this file have diagnostics? Add them to the message
-    if(res != diagnostics.end()) {
-        pub_params.diagnostics = res->second;
-    }
-    else {
-        // Otherwise, clear the diagnostics for the file
-        pub_params.diagnostics = empty_list;
+    if (res != diagnostics.end()) {
+      pub_params.diagnostics = res->second;
+    } else {
+      // Otherwise, clear the diagnostics for the file
+      pub_params.diagnostics = empty_list;
     }
     logger.info(fmt::format("Sending diagnostics for file: {}", filename));
     // Send the diagnostics to the client

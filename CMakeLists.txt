@@ -20,6 +20,7 @@ set(SOURCES
     src/main.cpp
     src/serverHandlers.cpp
     src/DiagnosticParser.cpp
+    src/ProjectSources.cpp
 )
 # The real exec
 add_executable(sver ${SOURCES})
