@@ -31,7 +31,7 @@ void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
 
   msg << getSeverityString(diagnostic.severity) << ": ";
   msg << diagnostic.formattedMessage;
-  msg << " @ L" << line << ", C" << col << std::endl;
+  msg << " @ L" << line << ", C" << col <<  " | "<< rel_filename<< std::endl;
   logger.info(msg.str());
 
   lsDiagnostic lsp_diagnostic;
