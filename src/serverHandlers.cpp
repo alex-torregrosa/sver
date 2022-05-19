@@ -4,6 +4,7 @@
 #include "LibLsp/lsp/lsDocumentUri.h"
 #include "LibLsp/lsp/lsp_diagnostic.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
+#include "NodeVisitor.h"
 #include "slang/text/SourceLocation.h"
 #include <fmt/core.h>
 #include <memory>
@@ -83,7 +84,7 @@ void ServerHandlers::updateDiagnostics() {
   // Rebuild the whole compilation unit
   if (compilation)
     compilation.reset();
-  
+
   // Recompile the design
   compilation = sources.compile();
 
@@ -112,9 +113,6 @@ void ServerHandlers::updateDiagnostics() {
   auto &diagnostics = parser->getDiagnostics();
 
   // Iterate all the known open files
-  // TODO: Tight now we use parsed_files, which may contain dynamically loaded
-  // files. It should be substituted by another array containing only the
-  // files known to be open by the client
   for (auto &filename : sources.getUserFiles()) {
     pub_params.uri.SetPath(AbsolutePath(filename));
     auto res = diagnostics.find(filename);
@@ -130,4 +128,9 @@ void ServerHandlers::updateDiagnostics() {
     // Send the diagnostics to the client
     remote.send(pub);
   }
+
+  // Load the symbols from the compiled tree
+  NodeVisitor nv(sm);
+
+  exit(0);
 }

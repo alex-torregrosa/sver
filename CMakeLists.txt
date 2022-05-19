@@ -21,6 +21,7 @@ set(SOURCES
     src/serverHandlers.cpp
     src/DiagnosticParser.cpp
     src/ProjectSources.cpp
+    src/NodeVisitor.cpp
 )
 # The real exec
 add_executable(sver ${SOURCES})
