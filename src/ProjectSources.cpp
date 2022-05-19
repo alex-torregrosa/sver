@@ -17,22 +17,44 @@ void ProjectSources::addFile(fs::path &file_path, bool userLoaded) {
 }
 
 void ProjectSources::addFile(AbsolutePath &file_path, bool userLoaded) {
-  file_info info;
-  info.modified = false;
-  info.userLoaded = userLoaded;
-  files_map[file_path] = info;
-  dirty = true;
+  auto res = files_map.find(file_path);
+  if (res == files_map.end()) {
+    file_info info;
+    info.modified = false;
+    info.userLoaded = userLoaded;
+    files_map[file_path] = info;
+  } else {
+    // We already have this file and it was user-loaded,
+    // no further processing is needed
+    if(res->second.userLoaded) return;
+    // We already have this file, do the minimal modifications
+    res->second.userLoaded = userLoaded;
+  }
+
+  dirty |= userLoaded; // If this is auto-loaded, the compilation already has it
+
+  // Try to locate a config if needed
   if (!config.loaded)
     locateInitConfig(fs::path(file_path.path));
 }
 
 void ProjectSources::addFile(AbsolutePath &file_path, std::string_view contents,
                              bool userLoaded) {
-  file_info info;
-  info.content = contents;
-  info.modified = true;
-  info.userLoaded = userLoaded;
-  files_map[file_path] = info;
+  auto res = files_map.find(file_path);
+  if (res == files_map.end()) {
+    file_info info;
+    info.content = contents;
+    info.modified = true;
+    info.userLoaded = userLoaded;
+    files_map[file_path] = info;
+  } else {
+    // We already have this file, do the minimal modifications
+    res->second.userLoaded |= userLoaded;
+    res->second.modified = true;
+    res->second.content = contents;
+  }
+
+  // Loading file contents always dirties the compilation
   dirty = true;
   if (!config.loaded)
     locateInitConfig(fs::path(file_path.path));
@@ -60,7 +82,6 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
   slang::Bag options;
   coptions.lintMode = false;
   options.set(coptions);
-
 
   std::shared_ptr<slang::Compilation> compilation(
       new slang::Compilation(options));
