@@ -1,17 +1,24 @@
-#include "slang/syntax/SyntaxPrinter.h"
 #include "NodeVisitor.h"
+#include "slang/syntax/SyntaxPrinter.h"
+#include <filesystem>
 
 const std::string WHITESPACE = " \n\r\t\f\v";
 
 NodeVisitor::NodeVisitor(std::shared_ptr<slang::SourceManager> sm) : sm(sm) {}
 
 void NodeVisitor::handle_pkg(const slang::PackageSymbol &sym) {
-  last_toplevel = sym.name;
-  known_packages.push_back(sym.name);
+  auto fname = sm->getFileName(sym.location);
+  fs::path fpath(fname);
+  last_toplevel = fs::canonical(fpath).string();
+
+  known_packages.push_back(last_toplevel);
 }
 
 void NodeVisitor::handle_instance(const slang::InstanceSymbolBase &unit) {
-  last_toplevel = unit.name;
+  auto fname = sm->getFileName(unit.location);
+  fs::path fpath(fname);
+
+  last_toplevel = fs::canonical(fpath).string();
 }
 
 void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
@@ -41,4 +48,14 @@ void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
   }
 
   known_symbols[last_toplevel][sym.name] = info;
+}
+
+const std::map<string_view, NodeVisitor::syminfo> *
+NodeVisitor::getFileSymbols(const std::string &file) {
+  auto res = known_symbols.find(file);
+
+  if (res != known_symbols.end()) {
+    return &res->second;
+  }
+  return nullptr;
 }

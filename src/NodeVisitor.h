@@ -3,6 +3,7 @@
 #include <slang/symbols/ASTVisitor.h>
 #include <slang/symbols/ValueSymbol.h>
 #include <slang/text/SourceManager.h>
+#include <string_view>
 
 class NodeVisitor : public slang::ASTVisitor<NodeVisitor, true, true> {
 public:
@@ -23,6 +24,7 @@ public:
     }
     visitDefault(t);
   }
+  const std::map<string_view, syminfo> *getFileSymbols(const std::string &file);
 
 private:
   void handle_value(const slang::ValueSymbol &sym);
@@ -30,7 +32,7 @@ private:
   void handle_instance(const slang::InstanceSymbolBase &unit);
 
   std::shared_ptr<slang::SourceManager> sm;
-  flat_hash_map<std::string_view, std::map<string_view, syminfo>> known_symbols;
+  flat_hash_map<std::string, std::map<string_view, syminfo>> known_symbols;
   std::vector<string_view> known_packages;
-  string_view last_toplevel;
+  std::string last_toplevel;
 };

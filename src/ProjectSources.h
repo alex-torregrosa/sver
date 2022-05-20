@@ -1,6 +1,7 @@
 # pragma once
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "slang/text/SourceManager.h"
+#include <mutex>
 #include <slang/compilation/Compilation.h>
 #include <filesystem>
 
@@ -33,6 +34,7 @@ public:
     bool dirty;
     init_config config;
     std::shared_ptr<slang::SourceManager> sm;
-    std::map<AbsolutePath, file_info> files_map;
+    std::map<std::string, file_info> files_map;
     std::vector<slang::SourceBuffer> loadedBuffers;
+    std::mutex compilation_mutex, filelist_mutex, config_mutex;
 };

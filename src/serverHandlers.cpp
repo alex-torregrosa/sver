@@ -2,6 +2,7 @@
 #include "DiagnosticParser.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "LibLsp/lsp/lsDocumentUri.h"
+#include "LibLsp/lsp/lsp_completion.h"
 #include "LibLsp/lsp/lsp_diagnostic.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
 #include "NodeVisitor.h"
@@ -16,7 +17,6 @@ ServerHandlers::ServerHandlers(lsp::Log &log, RemoteEndPoint &remote_end_point)
 
   options.set(coptions);
   log.info("Initializing ServerHandlers\n");
-  compilation = nullptr;
 }
 
 td_initialize::response
@@ -81,14 +81,11 @@ void ServerHandlers::didModifyHandler(
 }
 
 void ServerHandlers::updateDiagnostics() {
-  // Rebuild the whole compilation unit
-  if (compilation)
-    compilation.reset();
-
   // Recompile the design
-  compilation = sources.compile();
-
+  compile_mutex.lock();
+  std::shared_ptr<slang::Compilation> compilation = sources.compile();
   std::shared_ptr<slang::SourceManager> sm = sources.getSourceManager();
+  compile_mutex.unlock();
 
   // Recreate diagnostic tree
   slang::DiagnosticEngine engine(*sm);
@@ -129,7 +126,44 @@ void ServerHandlers::updateDiagnostics() {
     remote.send(pub);
   }
 
+  std::shared_ptr<NodeVisitor> new_visitor = std::make_shared<NodeVisitor>(sm);
   // Load the symbols from the compiled tree
-  NodeVisitor nv(sm);
+  compilation->getRoot().visit(*new_visitor);
 
+  // Lock the visitor mutex and swap our pointer
+  // this allows compilation and autocomplete sequences to gracefully overlap
+  visitor_mutex.lock();
+  if (nv == nullptr)
+    nv = new_visitor;
+  else
+    nv.swap(new_visitor);
+  visitor_mutex.unlock();
+}
+
+td_completion::response
+ServerHandlers::completionHandler(const td_completion::request &req) {
+  td_completion::response resp;
+
+  auto fname = req.params.textDocument.uri.GetAbsolutePath().path;
+  //logger.info("Getting completions FOR " + fname);
+  // No compulation yet, return an empty response
+  if (nv == nullptr)
+    return resp;
+
+  // Lock the NodeVisitor while we are using it
+  visitor_mutex.lock();
+  const auto symbols = nv->getFileSymbols(fname);
+  if (symbols != nullptr) {
+    for (auto &&[key, item] : *symbols) {
+      lsCompletionItem it;
+      it.label = key;
+      it.detail = item.type_name;
+      it.kind = lsCompletionItemKind::Variable;
+      resp.result.items.push_back(it);
+    }
+  }
+  // Unlock it!
+  visitor_mutex.unlock();
+
+  return resp;
 }

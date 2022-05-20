@@ -8,6 +8,7 @@
 #include "LibLsp/lsp/general/lsServerCapabilities.h"
 #include "LibLsp/lsp/general/lsTextDocumentClientCapabilities.h"
 #include "LibLsp/lsp/textDocument/declaration_definition.h"
+#include "LibLsp/lsp/textDocument/completion.h"
 
 #include "DiagnosticParser.h"
 #include "LibLsp/JsonRpc/Endpoint.h"
@@ -29,6 +30,10 @@ public:
 
     remote_end_point_.registerHandler([&](const td_initialize::request &req) {
       return handlers.initializeHandler(req);
+    });
+    
+    remote_end_point_.registerHandler([&](const td_completion::request &req) {
+      return handlers.completionHandler(req);
     });
 
     remote_end_point_.registerHandler(
