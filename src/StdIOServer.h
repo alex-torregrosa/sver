@@ -4,6 +4,7 @@
 #include "LibLsp/lsp/ProtocolJsonHandler.h"
 #include "LibLsp/lsp/general/exit.h"
 #include "LibLsp/lsp/general/initialize.h"
+#include "LibLsp/lsp/general/initialized.h"
 #include "LibLsp/lsp/general/lsServerCapabilities.h"
 #include "LibLsp/lsp/general/lsTextDocumentClientCapabilities.h"
 #include "LibLsp/lsp/textDocument/declaration_definition.h"
@@ -21,6 +22,11 @@ public:
       : remote_end_point_(protocol_json_handler, endpoint, _log),
         handlers(_log, remote_end_point_) {
 
+    remote_end_point_.registerHandler(
+        [&](Notify_InitializedNotification::notify &notify) {
+          // Do nothoing with this for now
+        });
+
     remote_end_point_.registerHandler([&](const td_initialize::request &req) {
       return handlers.initializeHandler(req);
     });
@@ -34,7 +40,6 @@ public:
         [&](Notify_TextDocumentDidChange::notify &notify) {
           handlers.didModifyHandler(notify);
         });
-
 
     remote_end_point_.registerHandler([&](Notify_Exit::notify &notify) {
       remote_end_point_.Stop();
