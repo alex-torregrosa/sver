@@ -132,5 +132,4 @@ void ServerHandlers::updateDiagnostics() {
   // Load the symbols from the compiled tree
   NodeVisitor nv(sm);
 
-  exit(0);
 }
