@@ -145,23 +145,43 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
   td_completion::response resp;
 
   auto fname = req.params.textDocument.uri.GetAbsolutePath().path;
-  //logger.info("Getting completions FOR " + fname);
-  // No compulation yet, return an empty response
+  // logger.info("Getting completions FOR " + fname);
+  //  No compulation yet, return an empty response
   if (nv == nullptr)
     return resp;
 
   // Lock the NodeVisitor while we are using it
   visitor_mutex.lock();
+
+  // Get symbols from the current file
   const auto symbols = nv->getFileSymbols(fname);
   if (symbols != nullptr) {
     for (auto &&[key, item] : *symbols) {
       lsCompletionItem it;
       it.label = key;
-      it.detail = item.type_name;
-      it.kind = lsCompletionItemKind::Variable;
+      it.detail = "\n" + item.type_name;
+      it.documentation = std::make_pair(item.parent_name, boost::none);
+      it.kind = item.kind;
       resp.result.items.push_back(it);
     }
   }
+
+  // Get symbols from all the loaded packages
+  const auto &pkgs = nv->getPackageList();
+  for (auto &pkg : pkgs) {
+    const auto pkg_syms = nv->getFileSymbols(std::string(pkg));
+    if (pkg_syms != nullptr) {
+      for (auto &&[key, item] : *pkg_syms) {
+        lsCompletionItem it;
+        it.label = key;
+        it.detail = item.type_name;
+        it.documentation = std::make_pair(item.parent_name, boost::none);
+        it.kind = item.kind;
+        resp.result.items.push_back(it);
+      }
+    }
+  }
+
   // Unlock it!
   visitor_mutex.unlock();
 

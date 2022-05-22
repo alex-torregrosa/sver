@@ -1,4 +1,5 @@
 #include "NodeVisitor.h"
+#include "LibLsp/lsp/lsp_completion.h"
 #include "slang/syntax/SyntaxPrinter.h"
 #include <filesystem>
 
@@ -24,6 +25,7 @@ void NodeVisitor::handle_instance(const slang::InstanceSymbolBase &unit) {
 void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
   // We found a symbol!! q
   auto fname = sm->getFileName(sym.location);
+  auto fpath =fs::canonical(fname);
   auto def = sym.getDeclaringDefinition();
   auto &type = sym.getType();
 
@@ -47,7 +49,24 @@ void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
     info.type_name = std::string(type.name) + " " + std::string(sym.name);
   }
 
-  known_symbols[last_toplevel][sym.name] = info;
+  // Handle Completion type
+  if(type.isEnum()) {
+    info.kind = lsCompletionItemKind::Enum;
+  }
+  else if(type.isClass()) {
+    info.kind = lsCompletionItemKind::Class;
+  }
+  else if(type.isStruct()) {
+    info.kind = lsCompletionItemKind::Struct;
+  }
+  else if(type.isVirtualInterface()) {
+    info.kind = lsCompletionItemKind::Interface;
+  }
+  else {
+    info.kind = lsCompletionItemKind::Variable;
+  }
+
+  known_symbols[fpath][sym.name] = info;
 }
 
 const std::map<string_view, NodeVisitor::syminfo> *
@@ -59,3 +78,8 @@ NodeVisitor::getFileSymbols(const std::string &file) {
   }
   return nullptr;
 }
+
+  const std::vector<string_view> &NodeVisitor::getPackageList() {
+    return known_packages;
+  }
+

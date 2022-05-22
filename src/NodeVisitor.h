@@ -3,6 +3,7 @@
 #include <slang/symbols/ASTVisitor.h>
 #include <slang/symbols/ValueSymbol.h>
 #include <slang/text/SourceManager.h>
+#include "LibLsp/lsp/lsp_completion.h"
 #include <string_view>
 
 class NodeVisitor : public slang::ASTVisitor<NodeVisitor, true, true> {
@@ -10,6 +11,7 @@ public:
   typedef struct {
     const slang::ValueSymbol *sym;
     std::string parent_name, type_name;
+    lsCompletionItemKind kind;
   } syminfo;
 
   NodeVisitor(std::shared_ptr<slang::SourceManager> sm);
@@ -25,6 +27,7 @@ public:
     visitDefault(t);
   }
   const std::map<string_view, syminfo> *getFileSymbols(const std::string &file);
+  const std::vector<string_view> &getPackageList();
 
 private:
   void handle_value(const slang::ValueSymbol &sym);
