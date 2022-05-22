@@ -33,6 +33,7 @@ private:
   void handle_value(const slang::ValueSymbol &sym);
   void handle_pkg(const slang::PackageSymbol &sym);
   void handle_instance(const slang::InstanceSymbolBase &unit);
+  std::string cleanupDecl(const std::string& decl);
 
   std::shared_ptr<slang::SourceManager> sm;
   flat_hash_map<std::string, std::map<string_view, syminfo>> known_symbols;
