@@ -145,8 +145,23 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
   td_completion::response resp;
 
   auto fname = req.params.textDocument.uri.GetAbsolutePath().path;
+
+  // Fill the completion with all the verilog keywords
+  for(const auto& key : verilog_keywords) {
+    lsCompletionItem it;
+    it.label = key;
+    it.kind = lsCompletionItemKind::Keyword;
+    resp.result.items.push_back(it);
+  }
+  for(const auto& key : systemverilog_keywords) {
+    lsCompletionItem it;
+    it.label = key;
+    it.kind = lsCompletionItemKind::Keyword;
+    resp.result.items.push_back(it);
+  }
+
   // logger.info("Getting completions FOR " + fname);
-  //  No compulation yet, return an empty response
+  //  No compilation yet, return a basic response
   if (nv == nullptr)
     return resp;
 
@@ -159,7 +174,7 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
     for (auto &&[key, item] : *symbols) {
       lsCompletionItem it;
       it.label = key;
-      it.detail = "\n" + item.type_name;
+      it.detail = item.type_name;
       it.documentation = std::make_pair(item.parent_name, boost::none);
       it.kind = item.kind;
       resp.result.items.push_back(it);
