@@ -7,9 +7,12 @@
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
 #include "NodeVisitor.h"
 #include "slang/text/SourceLocation.h"
+#include "slang/types/AllTypes.h"
 #include <fmt/core.h>
 #include <memory>
 #include <slang/syntax/SyntaxTree.h>
+#include <sstream>
+#include <string>
 
 ServerHandlers::ServerHandlers(lsp::Log &log, RemoteEndPoint &remote_end_point)
     : logger(log), remote(remote_end_point) {
@@ -27,7 +30,7 @@ ServerHandlers::initializeHandler(const td_initialize::request &req) {
   lsCompletionOptions completion_options;
   completion_options.resolveProvider = true;
   // Autocomplete on .
-  completion_options.triggerCharacters = std::vector<std::string>({"."});
+  completion_options.triggerCharacters = std::vector<std::string>({"$", "."});
 
   CodeLensOptions code_lens_options;
   code_lens_options.resolveProvider = true;
@@ -132,6 +135,7 @@ void ServerHandlers::updateDiagnostics() {
 
   // Lock the visitor mutex and swap our pointer
   // this allows compilation and autocomplete sequences to gracefully overlap
+  // NOOOOOOOOOOOOOOOOOOOOOO
   visitor_mutex.lock();
   if (nv == nullptr)
     nv = new_visitor;
@@ -145,15 +149,98 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
   td_completion::response resp;
 
   auto fname = req.params.textDocument.uri.GetAbsolutePath().path;
+  auto lineno = req.params.position.line;
+  auto colno = req.params.position.character;
+
+  std::string line;
+  std::string contents(sources.getFileContents(fname));
+  std::istringstream in(contents);
+
+  if (!contents.empty()) {
+    // We have the file's contents, lets get the line we want
+    line.reserve(256);
+    bool valid_line = true;
+    int i = 0;
+    while (i <= lineno && std::getline(in, line)) {
+      i++;
+    }
+    if (i - 1 == lineno) {
+      if (colno <= line.length()) {
+        line = line.substr(0, colno);
+      }
+      auto start = line.find_last_of(" \t\f\v+-*/&|^()[]?:@!~");
+      if (start != std::string::npos) {
+        line = line.substr(start + 1);
+      }
+      if (line[0] == '$') {
+        // We are autocompleting a system function
+        // Give the full list
+        for (const auto &key : verilog_system_functions) {
+          lsCompletionItem it;
+          it.label = key;
+          it.insertText = key.substr(1);
+          it.kind = lsCompletionItemKind::Function;
+          resp.result.items.push_back(it);
+        }
+        return resp;
+      }
+      /***************************
+       *   STRUCT COMPLETION    *
+       ***************************/
+
+      // Lock the mutex, we are going to interact with the visitor
+      visitor_mutex.lock();
+      const auto fsymbols = nv->getFileSymbols(fname);
+
+
+      logger.info("SOMETHING SOMETHING");
+      logger.info("LINE: "+line);
+      auto dotpos = line.find('.');
+      if (dotpos != std::string::npos && fsymbols != nullptr) {
+          // Separate the base
+          auto base = line.substr(0, dotpos);
+          line = line.substr(dotpos+1);
+
+          logger.info(fmt::format("STRUCT MAN STRUCT ini>'{}' nxt>'{}'", base, line));
+          auto sym_ptr = fsymbols->find(base);
+          if(sym_ptr != fsymbols->end() && sym_ptr->second.sym != nullptr) {
+            // We found the source symbol!!!
+            logger.info("BOIS WE FOUND THE SYM");
+            auto& sym_t = sym_ptr->second.sym->getType();
+            logger.info("BOIS WE FOUND THE TYPE");
+            if(sym_t.isStruct()) {
+                // It was a struct
+                logger.info("BOIS IT WAS ITTT");
+                auto& us = sym_t.getCanonicalType().as<slang::Scope>();
+                logger.info("YEAH");
+                for(auto& member : us.members()) {
+                    logger.info(std::string(member.name));
+                    lsCompletionItem it;
+                    it.label = member.name;
+                    resp.result.items.push_back(it);
+                }
+                visitor_mutex.unlock();
+                return resp;
+            }
+          }
+      }
+      // Preventive unlock if no structs are found
+      visitor_mutex.unlock();
+    }
+  }
+
+  /***************************
+   *   REGULAR COMPLETION    *
+   ***************************/
 
   // Fill the completion with all the verilog keywords
-  for(const auto& key : verilog_keywords) {
+  for (const auto &key : verilog_keywords) {
     lsCompletionItem it;
     it.label = key;
     it.kind = lsCompletionItemKind::Keyword;
     resp.result.items.push_back(it);
   }
-  for(const auto& key : systemverilog_keywords) {
+  for (const auto &key : systemverilog_keywords) {
     lsCompletionItem it;
     it.label = key;
     it.kind = lsCompletionItemKind::Keyword;

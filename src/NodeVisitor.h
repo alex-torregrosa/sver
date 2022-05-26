@@ -1,5 +1,6 @@
 #pragma once
 #include <flat_hash_map.hpp>
+#include <memory>
 #include <slang/symbols/ASTVisitor.h>
 #include <slang/symbols/ValueSymbol.h>
 #include <slang/text/SourceManager.h>
@@ -9,7 +10,7 @@
 class NodeVisitor : public slang::ASTVisitor<NodeVisitor, true, true> {
 public:
   typedef struct {
-    const slang::ValueSymbol *sym;
+    const slang::ValueSymbol* sym;
     std::string parent_name, type_name;
     lsCompletionItemKind kind;
   } syminfo;

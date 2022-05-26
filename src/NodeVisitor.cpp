@@ -1,7 +1,9 @@
 #include "NodeVisitor.h"
 #include "LibLsp/lsp/lsp_completion.h"
+#include "slang/symbols/ValueSymbol.h"
 #include "slang/syntax/SyntaxPrinter.h"
 #include <filesystem>
+#include <memory>
 
 const std::string WHITESPACE = " \n\r\t\f\v";
 
@@ -30,6 +32,7 @@ void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
   auto &type = sym.getType();
 
   syminfo info;
+
   if (def != nullptr) {
     info.parent_name = def->name;
   }
@@ -60,7 +63,8 @@ void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
     info.kind = lsCompletionItemKind::Variable;
   }
 
-  known_symbols[fpath][sym.name] = info;
+  info.sym = &sym;
+  known_symbols[fpath].emplace(std::make_pair(sym.name, info));
 }
 
 const std::map<string_view, NodeVisitor::syminfo> *

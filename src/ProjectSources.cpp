@@ -67,7 +67,7 @@ void ProjectSources::addFile(AbsolutePath &file_path, std::string_view contents,
 
 void ProjectSources::modifyFile(AbsolutePath &file_path,
                                 std::string_view contents) {
-  std::cerr<< "Modified file " << file_path.path << std::endl;
+  filelist_mutex.lock();
   auto res = files_map.find(file_path.path);
   if (res == files_map.end()) {
 
@@ -77,10 +77,35 @@ void ProjectSources::modifyFile(AbsolutePath &file_path,
     res->second.modified = true;
     dirty = true;
   }
+  filelist_mutex.unlock();
 }
 
 std::shared_ptr<slang::SourceManager> ProjectSources::getSourceManager() {
   return sm;
+}
+
+const std::string_view ProjectSources::getFileContents(const std::string& fpath) {
+    // Try to find it in the locally modified files
+    filelist_mutex.lock();
+    auto res_f = files_map.find(fpath);
+    if(res_f != files_map.end()) {
+        if(res_f->second.modified) {
+            auto& content = res_f->second.content;
+            filelist_mutex.unlock();
+            return content;
+        }
+    }
+    filelist_mutex.unlock();
+    // If not, search for it in the compilation
+    compilation_mutex.lock();
+    auto res = loadedBuffers.find(fpath);
+    if(res != loadedBuffers.end()) {
+        auto mview = res->second.data;
+        compilation_mutex.unlock();
+        return mview;
+    }
+    compilation_mutex.unlock();
+    return "";
 }
 
 std::shared_ptr<slang::Compilation> ProjectSources::compile() {
@@ -116,6 +141,7 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
       buff = sm->assignText(filepath, info.content);
     else
       buff = sm->readSource(filepath);
+    loadedBuffers[filepath] = buff;
     auto tree = slang::SyntaxTree::fromBuffer(buff, *sm, options);
     if (!info.userLoaded)
       tree->isLibrary = true;

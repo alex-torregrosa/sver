@@ -4,6 +4,7 @@
 #include <mutex>
 #include <slang/compilation/Compilation.h>
 #include <filesystem>
+#include <string>
 
 class ProjectSources {
     struct file_info {
@@ -29,12 +30,14 @@ public:
 
     const std::vector<std::string> getUserFiles() const;
 
+    const std::string_view getFileContents(const std::string& fpath);
+
     private:
     void locateInitConfig(fs::path base);
     bool dirty;
     init_config config;
     std::shared_ptr<slang::SourceManager> sm;
     std::map<std::string, file_info> files_map;
-    std::vector<slang::SourceBuffer> loadedBuffers;
+    std::map<std::string, slang::SourceBuffer> loadedBuffers;
     std::mutex compilation_mutex, filelist_mutex, config_mutex;
 };

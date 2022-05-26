@@ -1,4 +1,5 @@
 #include <iostream>
+#include <mutex>
 
 #include "LibLsp/JsonRpc/Condition.h"
 #include "LibLsp/lsp/ProtocolJsonHandler.h"
@@ -33,23 +34,31 @@ public:
     });
     
     remote_end_point_.registerHandler([&](const td_completion::request &req) {
-      return handlers.completionHandler(req);
+      tree_mutex.lock();
+      auto ret = handlers.completionHandler(req);
+      tree_mutex.unlock();
+      return ret;
     });
 
     remote_end_point_.registerHandler(
         [&](Notify_TextDocumentDidOpen::notify &notify) {
+          tree_mutex.lock();
           handlers.didOpenHandler(notify);
+          tree_mutex.unlock();
         });
 
     remote_end_point_.registerHandler(
         [&](Notify_TextDocumentDidChange::notify &notify) {
+          tree_mutex.lock();
           handlers.didModifyHandler(notify);
+          tree_mutex.unlock();
         });
 
     remote_end_point_.registerHandler([&](Notify_Exit::notify &notify) {
       remote_end_point_.Stop();
       esc_event.notify(std::make_unique<bool>(true));
     });
+
     remote_end_point_.registerHandler(
         [&](const td_definition::request &req, const CancelMonitor &monitor) {
           td_definition::response rsp;
@@ -86,4 +95,5 @@ public:
   RemoteEndPoint remote_end_point_;
   Condition<bool> esc_event;
   ServerHandlers handlers;
+  std::mutex tree_mutex;
 };
