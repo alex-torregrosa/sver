@@ -4,10 +4,12 @@
 #include "LibLsp/lsp/lsDocumentUri.h"
 #include "LibLsp/lsp/lsp_completion.h"
 #include "LibLsp/lsp/lsp_diagnostic.h"
+#include "LibLsp/lsp/textDocument/completion.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
 #include "NodeVisitor.h"
 #include "slang/text/SourceLocation.h"
 #include "slang/types/AllTypes.h"
+#include <boost/none.hpp>
 #include <fmt/core.h>
 #include <memory>
 #include <slang/syntax/SyntaxTree.h>
@@ -50,7 +52,7 @@ ServerHandlers::initializeHandler(const td_initialize::request &req) {
       std::make_pair(true, boost::none);
   rsp.result.capabilities.typeDefinitionProvider =
       std::make_pair(true, boost::none);
-  rsp.result.capabilities.workspace = workspace_options;
+  // rsp.result.capabilities.workspace = workspace_options;
   return rsp;
 }
 
@@ -78,17 +80,13 @@ void ServerHandlers::didModifyHandler(
   auto &latestContent = params.contentChanges[latestChange].text;
   sources.modifyFile(path, latestContent);
 
-  // parsed_files[path.path] = slang::SyntaxTree::fromBuffer(buffer, sm,
-  // options);
   updateDiagnostics();
 }
 
 void ServerHandlers::updateDiagnostics() {
   // Recompile the design
-  compile_mutex.lock();
   std::shared_ptr<slang::Compilation> compilation = sources.compile();
   std::shared_ptr<slang::SourceManager> sm = sources.getSourceManager();
-  compile_mutex.unlock();
 
   // Recreate diagnostic tree
   slang::DiagnosticEngine engine(*sm);
@@ -133,20 +131,16 @@ void ServerHandlers::updateDiagnostics() {
   // Load the symbols from the compiled tree
   compilation->getRoot().visit(*new_visitor);
 
-  // Lock the visitor mutex and swap our pointer
-  // this allows compilation and autocomplete sequences to gracefully overlap
-  // NOOOOOOOOOOOOOOOOOOOOOO
-  visitor_mutex.lock();
   if (nv == nullptr)
     nv = new_visitor;
   else
     nv.swap(new_visitor);
-  visitor_mutex.unlock();
 }
 
 td_completion::response
 ServerHandlers::completionHandler(const td_completion::request &req) {
   td_completion::response resp;
+  bool is_struct = false;
 
   auto fname = req.params.textDocument.uri.GetAbsolutePath().path;
   auto lineno = req.params.position.line;
@@ -155,6 +149,17 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
   std::string line;
   std::string contents(sources.getFileContents(fname));
   std::istringstream in(contents);
+
+  // Try to pre-detect structs
+  auto ctx = req.params.context;
+  if (ctx != boost::none) {
+    if (ctx->triggerKind == lsCompletionTriggerKind::TriggerCharacter) {
+      if (ctx->triggerCharacter != boost::none &&
+          *ctx->triggerCharacter == ".") {
+        is_struct = true;
+      }
+    }
+  }
 
   if (!contents.empty()) {
     // We have the file's contents, lets get the line we want
@@ -172,6 +177,10 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
       if (start != std::string::npos) {
         line = line.substr(start + 1);
       }
+      /***************************
+       *   SYSFUNC COMPLETION    *
+       ***************************/
+
       if (line[0] == '$') {
         // We are autocompleting a system function
         // Give the full list
@@ -188,44 +197,28 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
        *   STRUCT COMPLETION    *
        ***************************/
 
-      // Lock the mutex, we are going to interact with the visitor
-      visitor_mutex.lock();
       const auto fsymbols = nv->getFileSymbols(fname);
 
-
-      logger.info("SOMETHING SOMETHING");
-      logger.info("LINE: "+line);
       auto dotpos = line.find('.');
-      if (dotpos != std::string::npos && fsymbols != nullptr) {
+      if (fsymbols != nullptr) {
+        if (dotpos != std::string::npos || is_struct) {
           // Separate the base
           auto base = line.substr(0, dotpos);
-          line = line.substr(dotpos+1);
+          line = line.substr(dotpos + 1);
 
-          logger.info(fmt::format("STRUCT MAN STRUCT ini>'{}' nxt>'{}'", base, line));
-          auto sym_ptr = fsymbols->find(base);
-          if(sym_ptr != fsymbols->end() && sym_ptr->second.sym != nullptr) {
-            // We found the source symbol!!!
-            logger.info("BOIS WE FOUND THE SYM");
-            auto& sym_t = sym_ptr->second.sym->getType();
-            logger.info("BOIS WE FOUND THE TYPE");
-            if(sym_t.isStruct()) {
-                // It was a struct
-                logger.info("BOIS IT WAS ITTT");
-                auto& us = sym_t.getCanonicalType().as<slang::Scope>();
-                logger.info("YEAH");
-                for(auto& member : us.members()) {
-                    logger.info(std::string(member.name));
-                    lsCompletionItem it;
-                    it.label = member.name;
-                    resp.result.items.push_back(it);
-                }
-                visitor_mutex.unlock();
-                return resp;
+          auto struct_i = nv->getStructInfo(base);
+          if(struct_i != nullptr) {
+            for(auto& member : *struct_i) {
+                logger.info(std::string(member.name));
+                lsCompletionItem it;
+                it.label = member.name;
+                it.kind = member.kind;
+                resp.result.items.push_back(it);
             }
+            return resp;
           }
+        }
       }
-      // Preventive unlock if no structs are found
-      visitor_mutex.unlock();
     }
   }
 
@@ -247,13 +240,10 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
     resp.result.items.push_back(it);
   }
 
-  // logger.info("Getting completions FOR " + fname);
   //  No compilation yet, return a basic response
   if (nv == nullptr)
     return resp;
 
-  // Lock the NodeVisitor while we are using it
-  visitor_mutex.lock();
 
   // Get symbols from the current file
   const auto symbols = nv->getFileSymbols(fname);
@@ -284,8 +274,6 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
     }
   }
 
-  // Unlock it!
-  visitor_mutex.unlock();
 
   return resp;
 }

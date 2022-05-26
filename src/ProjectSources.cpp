@@ -17,7 +17,6 @@ void ProjectSources::addFile(fs::path &file_path, bool userLoaded) {
 }
 
 void ProjectSources::addFile(AbsolutePath &file_path, bool userLoaded) {
-  filelist_mutex.lock();
   auto res = files_map.find(file_path.path);
   if (res == files_map.end()) {
     file_info info;
@@ -33,7 +32,6 @@ void ProjectSources::addFile(AbsolutePath &file_path, bool userLoaded) {
   }
 
   dirty |= userLoaded; // If this is auto-loaded, the compilation already has it
-  filelist_mutex.unlock();
 
   // Try to locate a config if needed
   if (!config.loaded)
@@ -42,7 +40,6 @@ void ProjectSources::addFile(AbsolutePath &file_path, bool userLoaded) {
 
 void ProjectSources::addFile(AbsolutePath &file_path, std::string_view contents,
                              bool userLoaded) {
-  filelist_mutex.lock();
   auto res = files_map.find(file_path.path);
   if (res == files_map.end()) {
     file_info info;
@@ -56,7 +53,6 @@ void ProjectSources::addFile(AbsolutePath &file_path, std::string_view contents,
     res->second.modified = true;
     res->second.content = contents;
   }
-  filelist_mutex.unlock();
 
 
   // Loading file contents always dirties the compilation
@@ -67,7 +63,6 @@ void ProjectSources::addFile(AbsolutePath &file_path, std::string_view contents,
 
 void ProjectSources::modifyFile(AbsolutePath &file_path,
                                 std::string_view contents) {
-  filelist_mutex.lock();
   auto res = files_map.find(file_path.path);
   if (res == files_map.end()) {
 
@@ -77,7 +72,6 @@ void ProjectSources::modifyFile(AbsolutePath &file_path,
     res->second.modified = true;
     dirty = true;
   }
-  filelist_mutex.unlock();
 }
 
 std::shared_ptr<slang::SourceManager> ProjectSources::getSourceManager() {
@@ -86,25 +80,19 @@ std::shared_ptr<slang::SourceManager> ProjectSources::getSourceManager() {
 
 const std::string_view ProjectSources::getFileContents(const std::string& fpath) {
     // Try to find it in the locally modified files
-    filelist_mutex.lock();
     auto res_f = files_map.find(fpath);
     if(res_f != files_map.end()) {
         if(res_f->second.modified) {
             auto& content = res_f->second.content;
-            filelist_mutex.unlock();
             return content;
         }
     }
-    filelist_mutex.unlock();
     // If not, search for it in the compilation
-    compilation_mutex.lock();
     auto res = loadedBuffers.find(fpath);
     if(res != loadedBuffers.end()) {
         auto mview = res->second.data;
-        compilation_mutex.unlock();
         return mview;
     }
-    compilation_mutex.unlock();
     return "";
 }
 
@@ -114,7 +102,6 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
   coptions.lintMode = false;
   options.set(coptions);
 
-  compilation_mutex.lock();
   std::shared_ptr<slang::Compilation> compilation(
       new slang::Compilation(options));
 
@@ -134,7 +121,6 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
 
   // Parse and compile all the known files
   // Lock the filelist while we are using it
-  filelist_mutex.lock();
   for (auto &&[filepath, info] : files_map) {
     slang::SourceBuffer buff;
     if (info.modified)
@@ -147,7 +133,6 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
       tree->isLibrary = true;
     compilation->addSyntaxTree(tree);
   }
-  filelist_mutex.unlock();
 
   /* ********************************************************************
    * Code from slang/tools/driver/driver.cpp to find the names of missing
@@ -247,7 +232,6 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
     nextMissingNames.clear();
   }
 
-  compilation_mutex.unlock();
   return compilation;
 }
 
@@ -269,7 +253,6 @@ void ProjectSources::locateInitConfig(fs::path base) {
   if (!base.is_absolute())
     base = fs::absolute(base);
 
-  config_mutex.lock();
   bool found = false;
   while (!found) {
     auto conf_file = base / ".sver_config";
@@ -300,10 +283,8 @@ void ProjectSources::locateInitConfig(fs::path base) {
     if (base.has_parent_path())
       base = base.parent_path();
     else {
-      config_mutex.unlock();
       return; // We reached top or something
     }
   }
-  config_mutex.unlock();
 
 }

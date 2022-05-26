@@ -16,7 +16,6 @@ DiagnosticParser::getDiagnostics() {
 }
 
 void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
-  std::stringstream msg;
   auto sm = this->sourceManager;
   std::string rel_filename( sm->getFileName(diagnostic.location));
   auto filename = AbsolutePath(rel_filename).path;
@@ -28,11 +27,6 @@ void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
   // diagnostic.
   slang::SmallVectorSized<slang::SourceRange, 8> mappedRanges;
   engine->mapSourceRanges(diagnostic.location, diagnostic.ranges, mappedRanges);
-
-  msg << getSeverityString(diagnostic.severity) << ": ";
-  msg << diagnostic.formattedMessage;
-  msg << " @ L" << line << ", C" << col <<  " | "<< rel_filename<< std::endl;
-  logger.info(msg.str());
 
   lsDiagnostic lsp_diagnostic;
   lsp_diagnostic.message = diagnostic.formattedMessage;
@@ -64,7 +58,6 @@ void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
     int s_col = sm->getColumnNumber(range.start());
     int e_col = sm->getColumnNumber(range.end());
 
-    logger.info(fmt::format("  {}:{} -> {}{}", s_line, s_col, e_line, e_col));
     // Overwrite last range because idk
     lsp_diagnostic.range.start.character = s_col - 1;
     lsp_diagnostic.range.start.line = s_line - 1;

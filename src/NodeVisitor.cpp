@@ -1,9 +1,11 @@
 #include "NodeVisitor.h"
 #include "LibLsp/lsp/lsp_completion.h"
 #include "slang/symbols/ValueSymbol.h"
+#include "slang/symbols/VariableSymbols.h"
 #include "slang/syntax/SyntaxPrinter.h"
 #include <filesystem>
 #include <memory>
+#include <string>
 
 const std::string WHITESPACE = " \n\r\t\f\v";
 
@@ -22,6 +24,32 @@ void NodeVisitor::handle_instance(const slang::InstanceSymbolBase &unit) {
   fs::path fpath(fname);
 
   last_toplevel = fs::canonical(fpath).string();
+}
+
+lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type, const std::string& basename) {
+  if (type.isEnum()) {
+    return lsCompletionItemKind::Enum;
+  } else if (type.isClass()) {
+    return lsCompletionItemKind::Class;
+  } else if (type.isStruct()) {
+    // Parse struct
+    auto &str = type.getCanonicalType().as<slang::Scope>();
+    auto &memberlist = known_structs[basename];
+    memberlist.clear();
+    for (auto &member : str.members()) {
+      member_info m_info;
+      m_info.name = member.name;
+      // std::cerr << "MEMBER:" << member.name <<" "<<member.kind << std::endl;
+      auto &member_sym = member.as<slang::FieldSymbol>();
+      m_info.kind = getKind(member_sym.getType(), std::string(member.name));
+      m_info.kind = lsCompletionItemKind::Variable;
+      memberlist.emplace_back(m_info);
+    }
+    return lsCompletionItemKind::Struct;
+  } else if (type.isVirtualInterface()) {
+    return lsCompletionItemKind::Interface;
+  }
+  return lsCompletionItemKind::Variable;
 }
 
 void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
@@ -51,19 +79,8 @@ void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
   }
 
   // Handle Completion type
-  if (type.isEnum()) {
-    info.kind = lsCompletionItemKind::Enum;
-  } else if (type.isClass()) {
-    info.kind = lsCompletionItemKind::Class;
-  } else if (type.isStruct()) {
-    info.kind = lsCompletionItemKind::Struct;
-  } else if (type.isVirtualInterface()) {
-    info.kind = lsCompletionItemKind::Interface;
-  } else {
-    info.kind = lsCompletionItemKind::Variable;
-  }
+  info.kind = getKind(type, std::string(sym.name));
 
-  info.sym = &sym;
   known_symbols[fpath].emplace(std::make_pair(sym.name, info));
 }
 
@@ -79,6 +96,12 @@ NodeVisitor::getFileSymbols(const std::string &file) {
 
 const std::vector<string_view> &NodeVisitor::getPackageList() {
   return known_packages;
+}
+
+const NodeVisitor::struct_info *NodeVisitor::getStructInfo(const std::string& name) {
+  auto res = known_structs.find(name);
+  if(res == known_structs.end()) return nullptr;
+  return &res->second;
 }
 
 std::string NodeVisitor::cleanupDecl(const std::string &decl) {
