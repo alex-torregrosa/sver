@@ -47,8 +47,8 @@ private:
   std::string cleanupDecl(const std::string& decl);
 
   std::shared_ptr<slang::SourceManager> sm;
-  flat_hash_map<std::string, std::map<string_view, syminfo>> known_symbols;
-  flat_hash_map<std::string, struct_info> known_structs;
+  slang::flat_hash_map<std::string, std::map<string_view, syminfo>> known_symbols;
+  slang::flat_hash_map<std::string, struct_info> known_structs;
   std::vector<string_view> known_packages;
   std::string last_toplevel;
 };

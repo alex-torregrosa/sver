@@ -138,7 +138,7 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
    * Code from slang/tools/driver/driver.cpp to find the names of missing
    * packages
    * ********************************************************************/
-  flat_hash_set<string_view> knownNames;
+  slang::flat_hash_set<string_view> knownNames;
   auto addKnownNames = [&](const std::shared_ptr<slang::SyntaxTree> &tree) {
     auto &meta = tree->getMetadata();
     for (auto &[n, _] : meta.nodeMap) {
@@ -156,7 +156,7 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
   };
 
   auto findMissingNames = [&](const std::shared_ptr<slang::SyntaxTree> &tree,
-                              flat_hash_set<string_view> &missing) {
+                              slang::flat_hash_set<string_view> &missing) {
     auto &meta = tree->getMetadata();
     for (auto name : meta.globalInstances) {
       if (knownNames.find(name) == knownNames.end())
@@ -181,7 +181,7 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
   for (auto &tree : compilation->getSyntaxTrees())
     addKnownNames(tree);
 
-  flat_hash_set<string_view> missingNames;
+  slang::flat_hash_set<string_view> missingNames;
   for (auto &tree : compilation->getSyntaxTrees())
     findMissingNames(tree, missingNames);
   /************* END OF SLANG CODE***************/
@@ -190,7 +190,7 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
 
   // Loop modified from original slang code
   // Keep loading new files as long as we are making forward progress.
-  flat_hash_set<string_view> nextMissingNames;
+  slang::flat_hash_set<string_view> nextMissingNames;
   while (true) {
     for (auto name : missingNames) {
       slang::SourceBuffer buffer;
