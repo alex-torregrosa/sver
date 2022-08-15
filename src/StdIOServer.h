@@ -21,7 +21,7 @@
 class StdIOServer {
 public:
   StdIOServer()
-      : remote_end_point_(protocol_json_handler, endpoint, _log),
+      : remote_end_point_(protocol_json_handler, endpoint, _log, 1),
         handlers(_log, remote_end_point_) {
 
     remote_end_point_.registerHandler(
@@ -34,24 +34,18 @@ public:
     });
     
     remote_end_point_.registerHandler([&](const td_completion::request &req) {
-      tree_mutex.lock();
       auto ret = handlers.completionHandler(req);
-      tree_mutex.unlock();
       return ret;
     });
 
     remote_end_point_.registerHandler(
         [&](Notify_TextDocumentDidOpen::notify &notify) {
-          tree_mutex.lock();
           handlers.didOpenHandler(notify);
-          tree_mutex.unlock();
         });
 
     remote_end_point_.registerHandler(
         [&](Notify_TextDocumentDidChange::notify &notify) {
-          tree_mutex.lock();
           handlers.didModifyHandler(notify);
-          tree_mutex.unlock();
         });
 
     remote_end_point_.registerHandler([&](Notify_Exit::notify &notify) {
@@ -95,5 +89,4 @@ public:
   RemoteEndPoint remote_end_point_;
   Condition<bool> esc_event;
   ServerHandlers handlers;
-  std::mutex tree_mutex;
 };
