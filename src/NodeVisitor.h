@@ -16,7 +16,7 @@ public:
   } syminfo;
 
   typedef struct {
-    std::string name;
+    std::string name, type_name;
     lsCompletionItemKind kind;
   } member_info;
 
@@ -34,13 +34,16 @@ public:
     }
     visitDefault(t);
   }
-  const std::map<string_view, syminfo> *getFileSymbols(const std::string &file);
+  const std::map<string_view, syminfo> *getFileSymbols(std::string_view file);
   const struct_info *getStructInfo(const std::string& name);
 
   const std::vector<string_view> &getPackageList();
 
 private:
-  lsCompletionItemKind getKind(const slang::Type& type, const std::string& basename);
+  lsCompletionItemKind getKind(const slang::Type& type);
+  std::string getTypeName(const slang::Type &type);
+  void handleStruct(const slang::Type &type, std::string_view sym_name);
+
   void handle_value(const slang::ValueSymbol &sym);
   void handle_pkg(const slang::PackageSymbol &sym);
   void handle_instance(const slang::InstanceSymbolBase &unit);

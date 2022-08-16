@@ -26,24 +26,63 @@ void NodeVisitor::handle_instance(const slang::InstanceSymbolBase &unit) {
   last_toplevel = fs::canonical(fpath).string();
 }
 
-lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type, const std::string& basename) {
+std::string NodeVisitor::getTypeName(const slang::Type &type) {
+  // Types with name get directly the name
+  if (!type.name.empty())
+    return std::string(type.name);
+
+  // No name, we should build it manually
+  if (type.isArray()) {
+    const slang::Type *baseType = type.getArrayElementType();
+    // All arrays should have an element type
+    if (baseType == nullptr)
+      return "";
+    std::string baseName = getTypeName(*baseType);
+    return baseName + "[]";
+  } else {
+    // Got no type name? Get the full declaration from the SyntaxTree
+    /*slang::SyntaxPrinter printer =
+        slang::SyntaxPrinter().setIncludeComments(false).print(
+            *sym.getSyntax()->parent);
+    */
+    return "unknown";
+  }
+}
+
+void NodeVisitor::handleStruct(const slang::Type &type,
+                               std::string_view sym_name) {
+  // Parse struct
+  auto &m_struct = type.getCanonicalType().as<slang::Scope>();
+  // Set the name: Structs with no type get the symbol name,
+  // typedefed ones get the typename
+  std::string structname(type.name.empty() ? sym_name : type.name);
+
+  auto &memberlist = known_structs[structname];
+  if (memberlist.size() == 0) {
+    for (auto &member : m_struct.members()) {
+        // Get the type
+      auto &member_type = member.as<slang::VariableSymbol>().getType();
+      // Fill the info struct
+      member_info m_info;
+      m_info.name = member.name;
+      m_info.kind = getKind(member_type);
+      m_info.type_name = getTypeName(member_type);
+      // Push it to the list
+      memberlist.emplace_back(m_info);
+      // Recurse structs
+      if(member_type.isStruct()) {
+        handleStruct(type, member.name);
+      }
+    }
+  }
+}
+
+lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type) {
   if (type.isEnum()) {
     return lsCompletionItemKind::Enum;
   } else if (type.isClass()) {
     return lsCompletionItemKind::Class;
   } else if (type.isStruct()) {
-    // Parse struct
-    auto &str = type.getCanonicalType().as<slang::Scope>();
-    auto &memberlist = known_structs[basename];
-    memberlist.clear();
-    for (auto &member : str.members()) {
-      member_info m_info;
-      m_info.name = member.name;
-      // std::cerr << "MEMBER:" << member.name <<" "<<member.kind << std::endl;
-      auto &member_sym = member.as<slang::FieldSymbol>();
-      m_info.kind = getKind(member_sym.getType(), std::string(member.name));
-      memberlist.emplace_back(m_info);
-    }
     return lsCompletionItemKind::Struct;
   } else if (type.isVirtualInterface()) {
     return lsCompletionItemKind::Interface;
@@ -64,28 +103,19 @@ void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
     info.parent_name = def->name;
   }
 
-  if (type.name.empty()) {
-    // Got no type name? Get the full declaration from the SyntaxTree
-    slang::SyntaxPrinter printer =
-        slang::SyntaxPrinter().setIncludeComments(false).print(
-            *sym.getSyntax()->parent);
-    info.type_name = printer.str();
+  if (type.isStruct())
+    handleStruct(type, sym.name);
 
-    // Cleanup the string
-    info.type_name = cleanupDecl(info.type_name);
-  } else {
-    info.type_name = std::string(type.name) + " " + std::string(sym.name);
-  }
-
-  // Handle Completion type
-  info.kind = getKind(type, std::string(sym.name));
+  info.type_name = getTypeName(type);
+  info.kind = getKind(type);
 
   known_symbols[fpath].emplace(std::make_pair(sym.name, info));
 }
 
 const std::map<string_view, NodeVisitor::syminfo> *
-NodeVisitor::getFileSymbols(const std::string &file) {
-  auto res = known_symbols.find(file);
+NodeVisitor::getFileSymbols(std::string_view file) {
+  std::string fname(file);
+  auto res = known_symbols.find(fname);
 
   if (res != known_symbols.end()) {
     return &res->second;
@@ -97,9 +127,11 @@ const std::vector<string_view> &NodeVisitor::getPackageList() {
   return known_packages;
 }
 
-const NodeVisitor::struct_info *NodeVisitor::getStructInfo(const std::string& name) {
+const NodeVisitor::struct_info *
+NodeVisitor::getStructInfo(const std::string &name) {
   auto res = known_structs.find(name);
-  if(res == known_structs.end()) return nullptr;
+  if (res == known_structs.end())
+    return nullptr;
   return &res->second;
 }
 
