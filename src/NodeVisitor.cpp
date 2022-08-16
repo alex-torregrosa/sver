@@ -42,7 +42,6 @@ lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type, const std::st
       // std::cerr << "MEMBER:" << member.name <<" "<<member.kind << std::endl;
       auto &member_sym = member.as<slang::FieldSymbol>();
       m_info.kind = getKind(member_sym.getType(), std::string(member.name));
-      m_info.kind = lsCompletionItemKind::Variable;
       memberlist.emplace_back(m_info);
     }
     return lsCompletionItemKind::Struct;
