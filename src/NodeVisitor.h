@@ -40,9 +40,9 @@ public:
   const std::vector<string_view> &getPackageList();
 
 private:
-  lsCompletionItemKind getKind(const slang::Type& type);
+  lsCompletionItemKind getKind(const slang::Type& type, bool isMember=false);
   std::string getTypeName(const slang::Type &type);
-  void handleStruct(const slang::Type &type, std::string_view sym_name);
+  void handleScope(const slang::Type &type, std::string_view sym_name);
 
   void handle_value(const slang::ValueSymbol &sym);
   void handle_pkg(const slang::PackageSymbol &sym);

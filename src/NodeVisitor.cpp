@@ -49,44 +49,45 @@ std::string NodeVisitor::getTypeName(const slang::Type &type) {
   }
 }
 
-void NodeVisitor::handleStruct(const slang::Type &type,
-                               std::string_view sym_name) {
+void NodeVisitor::handleScope(const slang::Type &type,
+                              std::string_view sym_name) {
   // Parse struct
-  auto &m_struct = type.getCanonicalType().as<slang::Scope>();
+  auto &m_scope = type.getCanonicalType().as<slang::Scope>();
   // Set the name: Structs with no type get the symbol name,
   // typedefed ones get the typename
-  std::string structname(type.name.empty() ? sym_name : type.name);
+  std::string scopename(type.name.empty() ? sym_name : type.name);
 
-  auto &memberlist = known_structs[structname];
+  auto &memberlist = known_structs[scopename];
   if (memberlist.size() == 0) {
-    for (auto &member : m_struct.members()) {
-        // Get the type
+    for (auto &member : m_scope.members()) {
+      // Get the type
       auto &member_type = member.as<slang::VariableSymbol>().getType();
       // Fill the info struct
       member_info m_info;
       m_info.name = member.name;
-      m_info.kind = getKind(member_type);
+      m_info.kind = getKind(member_type, true);
       m_info.type_name = getTypeName(member_type);
       // Push it to the list
       memberlist.emplace_back(m_info);
       // Recurse structs
-      if(member_type.isStruct()) {
-        handleStruct(type, member.name);
+      if (member_type.isStruct()) {
+        handleScope(type, member.name);
       }
     }
   }
 }
 
-lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type) {
+lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type, bool isMember) {
   if (type.isEnum()) {
     return lsCompletionItemKind::Enum;
   } else if (type.isClass()) {
     return lsCompletionItemKind::Class;
-  } else if (type.isStruct()) {
+  } else if (type.isStruct() || type.isPackedUnion() || type.isUnpackedUnion()) {
     return lsCompletionItemKind::Struct;
   } else if (type.isVirtualInterface()) {
     return lsCompletionItemKind::Interface;
   }
+  if(isMember) return lsCompletionItemKind::Field;
   return lsCompletionItemKind::Variable;
 }
 
@@ -103,8 +104,9 @@ void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
     info.parent_name = def->name;
   }
 
-  if (type.isStruct())
-    handleStruct(type, sym.name);
+  if (type.isStruct() || type.isClass() || type.isPackedUnion() ||
+      type.isUnpackedUnion())
+    handleScope(type, sym.name);
 
   info.type_name = getTypeName(type);
   info.kind = getKind(type);
