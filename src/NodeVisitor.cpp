@@ -4,6 +4,7 @@
 #include "slang/symbols/VariableSymbols.h"
 #include "slang/syntax/SyntaxPrinter.h"
 #include <filesystem>
+#include <fmt/core.h>
 #include <memory>
 #include <string>
 
@@ -33,19 +34,47 @@ std::string NodeVisitor::getTypeName(const slang::Type &type) {
 
   // No name, we should build it manually
   if (type.isArray()) {
-    const slang::Type *baseType = type.getArrayElementType();
-    // All arrays should have an element type
-    if (baseType == nullptr)
+    const slang::Type *act_type = &type;
+
+    std::string arr_size = "";
+    // Nested arrays!
+    while (act_type != nullptr && act_type->isArray()) {
+      if (act_type->isFixedSize()) {
+        // Fixed size: Add the declared size
+        auto frange = act_type->getFixedRange();
+        if (frange.isLittleEndian())
+          arr_size += fmt::format("[{}:{}]", frange.upper(), frange.lower());
+        else
+          arr_size += fmt::format("[{}:{}]", frange.lower(), frange.upper());
+      }
+      // Dynamic size: Just add [] for now
+      else
+        arr_size += "[]";
+      // Iterate to the lower-level type
+      act_type = act_type->getArrayElementType();
+    }
+
+    // Somehow we reached a null ArrayElementType
+    if (act_type == nullptr)
       return "";
-    std::string baseName = getTypeName(*baseType);
-    return baseName + "[]";
+
+    // Get the basic type name
+    std::string baseName = getTypeName(*act_type);
+    // Build the final type
+    return baseName + " " + arr_size;
   } else {
+    if (type.isStruct())
+      return "struct";
+    if (type.isPackedUnion() || type.isUnpackedUnion())
+      return "union";
+    if (type.isClass())
+      return "class";
     // Got no type name? Get the full declaration from the SyntaxTree
     /*slang::SyntaxPrinter printer =
         slang::SyntaxPrinter().setIncludeComments(false).print(
             *sym.getSyntax()->parent);
     */
-    return "unknown";
+    return "";
   }
 }
 
