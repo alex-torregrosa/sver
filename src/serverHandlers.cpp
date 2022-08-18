@@ -29,6 +29,10 @@ ServerHandlers::initializeHandler(const td_initialize::request &req) {
   td_initialize::response rsp;
   rsp.id = req.id;
 
+  auto rootUri = req.params.rootUri;
+  if (rootUri.has_value())
+    sources.setRootPath(rootUri.value().GetAbsolutePath().path);
+
   lsCompletionOptions completion_options;
   completion_options.resolveProvider = false;
   // Autocomplete on .

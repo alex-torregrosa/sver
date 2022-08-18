@@ -15,6 +15,7 @@ class ProjectSources {
 
     struct init_config {
         bool loaded;
+        fs::path rootPath;
         std::vector<fs::path> library_directories;
         std::vector<fs::path> include_directories;
     };
@@ -27,6 +28,7 @@ public:
     void modifyFile(AbsolutePath& file_path, std::string_view contents);
     std::shared_ptr<slang::Compilation> compile();
     std::shared_ptr<slang::SourceManager> getSourceManager();
+    void setRootPath(std::string_view path);
 
     const std::vector<std::string> getUserFiles() const;
 

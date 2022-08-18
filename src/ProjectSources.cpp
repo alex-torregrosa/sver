@@ -11,6 +11,12 @@ ProjectSources::ProjectSources() {
   config.loaded = false;
   dirty = false;
 }
+
+void ProjectSources::setRootPath(std::string_view path) {
+    config.rootPath = fs::absolute(path);
+    locateInitConfig(config.rootPath);
+}
+
 void ProjectSources::addFile(fs::path &file_path, bool userLoaded) {
   AbsolutePath p(file_path.c_str());
   addFile(p, userLoaded);
@@ -262,21 +268,30 @@ void ProjectSources::locateInitConfig(fs::path base) {
       found = true;
       // TODO: Load it
       config.loaded = true;
-    } else if (fs::is_directory(git_folder)) {
-      // We reached a repo top level with no config file
-      found = true;
-      // Let's try to guess some parameters
-      auto rtl_dir = base / "rtl";
-      if (fs::is_directory(rtl_dir)) {
-        config.library_directories.push_back(rtl_dir);
-        auto include_dir = rtl_dir / "include";
-        if (fs::is_directory(include_dir)) {
-          config.library_directories.push_back(include_dir);
-          config.include_directories.push_back(include_dir);
-        }
-      }
+    } else if (fs::is_directory(git_folder) || base == config.rootPath) {
+        // Helper lambdas to search directories
+        auto testIncludeDir = [&](fs::path dir) {
+            if(fs::is_directory(dir)) {
+                config.library_directories.push_back(dir);
+                config.include_directories.push_back(dir);
+            }
+        };
+        auto testDir = [&](fs::path dir) {
+            if(fs::is_directory(dir)) {
+                found = true;
+                config.loaded = true;
+                config.library_directories.push_back(dir);
+                testIncludeDir(dir / "include");
+            }
+        };
 
-      config.loaded = true;
+        // Test some common directories
+        testIncludeDir(base / "include");
+        testDir(base / "rtl");
+        testDir(base / "src");
+
+        // Top-level of a git repo always means to stop
+        if(fs::is_directory(git_folder)) found = true;
     }
 
     // Go up!!!!!
