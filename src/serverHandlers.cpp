@@ -7,6 +7,7 @@
 #include "LibLsp/lsp/lsp_diagnostic.h"
 #include "LibLsp/lsp/textDocument/completion.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
+#include "LibLsp/lsp/workspace/configuration.h"
 #include "NodeVisitor.h"
 #include "slang/text/SourceLocation.h"
 #include "slang/types/AllTypes.h"
@@ -57,6 +58,28 @@ ServerHandlers::initializeHandler(const td_initialize::request &req) {
   rsp.result.capabilities.typeDefinitionProvider =
       std::make_pair(true, boost::none);
   // rsp.result.capabilities.workspace = workspace_options;
+
+  // Check the client capabilities
+  if (req.params.capabilities.workspace.has_value()) {
+    const auto &workspaceCapabilities =
+        req.params.capabilities.workspace.value();
+    if (workspaceCapabilities.configuration.has_value() &&
+        workspaceCapabilities.configuration.value()) {
+      // The client accepts config requests, send one
+      WorkspaceConfiguration::request confReq;
+      ConfigurationItem it;
+      it.section = "verilog.includePaths";
+      confReq.params.items.push_back(it);
+      it.section = "verilog.libraryPaths";
+      confReq.params.items.push_back(it);
+      it.section = "verilog.filelists";
+      confReq.params.items.push_back(it);
+      it.section = "verilog.compileFiles";
+      confReq.params.items.push_back(it);
+      remote.send(confReq);
+    }
+  }
+
   return rsp;
 }
 
@@ -172,4 +195,10 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
     }
   }
   return resp;
+}
+
+void ServerHandlers::configChange(Notify_WorkspaceDidChangeConfiguration::notify &notify) {
+  ServerConfigTop config;
+  notify.params.settings.GetFromMap(config);
+  sources.setConfig(config.verilog);
 }

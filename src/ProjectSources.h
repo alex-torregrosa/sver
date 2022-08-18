@@ -5,6 +5,7 @@
 #include <slang/compilation/Compilation.h>
 #include <filesystem>
 #include <string>
+#include "ServerConfig.h"
 
 class ProjectSources {
     struct file_info {
@@ -22,13 +23,14 @@ class ProjectSources {
 
 public:
     ProjectSources();
-    void addFile(AbsolutePath& file_path, bool user_loaded=true);
-    void addFile(fs::path& file_path, bool user_loaded=true);
+    void addFile(const AbsolutePath& file_path, bool user_loaded=true);
+    void addFile(const fs::path& file_path, bool user_loaded=true);
     void addFile(AbsolutePath& file_path, std::string_view contents, bool user_loaded=true);
     void modifyFile(AbsolutePath& file_path, std::string_view contents);
     std::shared_ptr<slang::Compilation> compile();
     std::shared_ptr<slang::SourceManager> getSourceManager();
     void setRootPath(std::string_view path);
+    void setConfig(ServerConfig config);
 
     const std::vector<std::string> getUserFiles() const;
 

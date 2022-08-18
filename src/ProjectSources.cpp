@@ -13,16 +13,16 @@ ProjectSources::ProjectSources() {
 }
 
 void ProjectSources::setRootPath(std::string_view path) {
-    config.rootPath = fs::absolute(path);
-    locateInitConfig(config.rootPath);
+  config.rootPath = fs::absolute(path);
+  locateInitConfig(config.rootPath);
 }
 
-void ProjectSources::addFile(fs::path &file_path, bool userLoaded) {
+void ProjectSources::addFile(const fs::path &file_path, bool userLoaded) {
   AbsolutePath p(file_path.c_str());
   addFile(p, userLoaded);
 }
 
-void ProjectSources::addFile(AbsolutePath &file_path, bool userLoaded) {
+void ProjectSources::addFile(const AbsolutePath &file_path, bool userLoaded) {
   auto res = files_map.find(file_path.path);
   if (res == files_map.end()) {
     file_info info;
@@ -32,7 +32,8 @@ void ProjectSources::addFile(AbsolutePath &file_path, bool userLoaded) {
   } else {
     // We already have this file and it was user-loaded,
     // no further processing is needed
-    if(res->second.userLoaded) return;
+    if (res->second.userLoaded)
+      return;
     // We already have this file, do the minimal modifications
     res->second.userLoaded = userLoaded;
   }
@@ -60,7 +61,6 @@ void ProjectSources::addFile(AbsolutePath &file_path, std::string_view contents,
     res->second.content = contents;
   }
 
-
   // Loading file contents always dirties the compilation
   dirty = true;
   if (!config.loaded)
@@ -84,22 +84,23 @@ std::shared_ptr<slang::SourceManager> ProjectSources::getSourceManager() {
   return sm;
 }
 
-const std::string_view ProjectSources::getFileContents(const std::string& fpath) {
-    // Try to find it in the locally modified files
-    auto res_f = files_map.find(fpath);
-    if(res_f != files_map.end()) {
-        if(res_f->second.modified) {
-            auto& content = res_f->second.content;
-            return content;
-        }
+const std::string_view
+ProjectSources::getFileContents(const std::string &fpath) {
+  // Try to find it in the locally modified files
+  auto res_f = files_map.find(fpath);
+  if (res_f != files_map.end()) {
+    if (res_f->second.modified) {
+      auto &content = res_f->second.content;
+      return content;
     }
-    // If not, search for it in the compilation
-    auto res = loadedBuffers.find(fpath);
-    if(res != loadedBuffers.end()) {
-        auto mview = res->second.data;
-        return mview;
-    }
-    return "";
+  }
+  // If not, search for it in the compilation
+  auto res = loadedBuffers.find(fpath);
+  if (res != loadedBuffers.end()) {
+    auto mview = res->second.data;
+    return mview;
+  }
+  return "";
 }
 
 std::shared_ptr<slang::Compilation> ProjectSources::compile() {
@@ -122,12 +123,14 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
 
   // Add the user include directories to the SM
   for (auto &dpath : config.include_directories) {
+      std::cerr<< "includeDir: " << dpath.string() << std::endl;
     sm->addUserDirectory(dpath.string());
   }
 
   // Parse and compile all the known files
   // Lock the filelist while we are using it
   for (auto &&[filepath, info] : files_map) {
+      std::cerr<< "file: " << filepath << std::endl;
     slang::SourceBuffer buff;
     if (info.modified)
       buff = sm->assignText(filepath, info.content);
@@ -201,6 +204,7 @@ std::shared_ptr<slang::Compilation> ProjectSources::compile() {
     for (auto name : missingNames) {
       slang::SourceBuffer buffer;
       for (auto &dir : config.library_directories) {
+          std::cerr << "libdir: "<<dir.string() << std::endl;
         fs::path path(dir);
         path /= name;
 
@@ -269,29 +273,30 @@ void ProjectSources::locateInitConfig(fs::path base) {
       // TODO: Load it
       config.loaded = true;
     } else if (fs::is_directory(git_folder) || base == config.rootPath) {
-        // Helper lambdas to search directories
-        auto testIncludeDir = [&](fs::path dir) {
-            if(fs::is_directory(dir)) {
-                config.library_directories.push_back(dir);
-                config.include_directories.push_back(dir);
-            }
-        };
-        auto testDir = [&](fs::path dir) {
-            if(fs::is_directory(dir)) {
-                found = true;
-                config.loaded = true;
-                config.library_directories.push_back(dir);
-                testIncludeDir(dir / "include");
-            }
-        };
+      // Helper lambdas to search directories
+      auto testIncludeDir = [&](fs::path dir) {
+        if (fs::is_directory(dir)) {
+          config.library_directories.push_back(dir);
+          config.include_directories.push_back(dir);
+        }
+      };
+      auto testDir = [&](fs::path dir) {
+        if (fs::is_directory(dir)) {
+          found = true;
+          config.loaded = true;
+          config.library_directories.push_back(dir);
+          testIncludeDir(dir / "include");
+        }
+      };
 
-        // Test some common directories
-        testIncludeDir(base / "include");
-        testDir(base / "rtl");
-        testDir(base / "src");
+      // Test some common directories
+      testIncludeDir(base / "include");
+      testDir(base / "rtl");
+      testDir(base / "src");
 
-        // Top-level of a git repo always means to stop
-        if(fs::is_directory(git_folder)) found = true;
+      // Top-level of a git repo always means to stop
+      if (fs::is_directory(git_folder))
+        found = true;
     }
 
     // Go up!!!!!
@@ -300,6 +305,31 @@ void ProjectSources::locateInitConfig(fs::path base) {
     else {
       return; // We reached top or something
     }
+  }
+}
+
+void ProjectSources::setConfig(ServerConfig newConfig) {
+  config.loaded = true;
+  // Load configuration, will overwrite any existing one
+
+  // Load Include Paths
+  if (!newConfig.includePaths.empty())
+    config.include_directories.clear();
+  for (std::string p : newConfig.includePaths) {
+    config.include_directories.push_back(fs::absolute(p));
+  }
+
+  // Load Library Pahs
+  if (!newConfig.libraryPaths.empty())
+    config.library_directories.clear();
+  for (std::string p : newConfig.libraryPaths) {
+    config.library_directories.push_back(fs::absolute(p));
+  }
+
+  // Add Extra files to the compilation
+  for (std::string p : newConfig.compileFiles) {
+    fs::path filePath = fs::absolute(p);
+    addFile(filePath, false);
   }
 
 }

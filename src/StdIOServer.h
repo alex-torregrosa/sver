@@ -10,7 +10,7 @@
 #include "LibLsp/lsp/general/lsTextDocumentClientCapabilities.h"
 #include "LibLsp/lsp/textDocument/declaration_definition.h"
 #include "LibLsp/lsp/textDocument/completion.h"
-
+#include "LibLsp/lsp/workspace/did_change_configuration.h"
 #include "DiagnosticParser.h"
 #include "LibLsp/JsonRpc/Endpoint.h"
 #include "LibLsp/JsonRpc/RemoteEndPoint.h"
@@ -46,6 +46,11 @@ public:
     remote_end_point_.registerHandler(
         [&](Notify_TextDocumentDidChange::notify &notify) {
           handlers.didModifyHandler(notify);
+        });
+
+    remote_end_point_.registerHandler(
+        [&](Notify_WorkspaceDidChangeConfiguration::notify &notify) {
+        handlers.configChange(notify);
         });
 
     remote_end_point_.registerHandler([&](Notify_Exit::notify &notify) {
