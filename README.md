@@ -4,7 +4,7 @@ SystemVerilog Language Server, based on slang
 ## Requirements
 - CMake >= 3.10
 - C++17 compiler
-- [Boost](https://www.boost.org/) Library
+- [Boost](https://www.boost.org/) Library >= 1.66
 
 ## Compilation
 
