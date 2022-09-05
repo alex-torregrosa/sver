@@ -11,9 +11,9 @@
 #include "NodeVisitor.h"
 #include "slang/text/SourceLocation.h"
 #include "slang/types/AllTypes.h"
-#include <boost/none.hpp>
 #include <fmt/core.h>
 #include <memory>
+#include <optional>
 #include <slang/syntax/SyntaxTree.h>
 #include <sstream>
 #include <string>
@@ -52,11 +52,11 @@ ServerHandlers::initializeHandler(const td_initialize::request &req) {
   // TODO: Add more capabilities!
   rsp.result.capabilities.codeLensProvider = code_lens_options;
   rsp.result.capabilities.completionProvider = completion_options;
-  rsp.result.capabilities.renameProvider = std::make_pair(true, boost::none);
+  rsp.result.capabilities.renameProvider = std::make_pair(true, std::nullopt);
   rsp.result.capabilities.definitionProvider =
-      std::make_pair(true, boost::none);
+      std::make_pair(true, std::nullopt);
   rsp.result.capabilities.typeDefinitionProvider =
-      std::make_pair(true, boost::none);
+      std::make_pair(true, std::nullopt);
   // rsp.result.capabilities.workspace = workspace_options;
 
   // Check the client capabilities

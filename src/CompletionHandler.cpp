@@ -41,7 +41,7 @@ void CompletionHandler::add_file_symbols(std::string_view fname,
       lsCompletionItem it;
       it.label = key;
       it.detail = item.type_name;
-      it.documentation = std::make_pair(item.parent_name, boost::none);
+      it.documentation = std::make_pair(item.parent_name, std::nullopt);
       it.kind = item.kind;
       items.push_back(it);
     }
@@ -59,7 +59,7 @@ void CompletionHandler::add_package_symbols(
         lsCompletionItem it;
         it.label = key;
         it.detail = item.type_name;
-        it.documentation = std::make_pair(item.parent_name, boost::none);
+        it.documentation = std::make_pair(item.parent_name, std::nullopt);
         it.kind = item.kind;
         items.push_back(it);
       }
