@@ -14,6 +14,7 @@ add_subdirectory(libs/slang)
 set_target_properties(driver rewriter slangruntime PROPERTIES EXCLUDE_FROM_ALL 1 EXCLUDE_FROM_DEFAULT_BUILD 1)
 
 # Build lspcpp library
+set(LSPCPP_BUILD_WEBSOCKETS OFF)
 add_subdirectory(libs/lspcpp)
 
 set(SOURCES 
