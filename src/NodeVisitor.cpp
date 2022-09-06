@@ -100,7 +100,7 @@ void NodeVisitor::handleScope(const slang::Type &type,
       memberlist.emplace_back(m_info);
       // Recurse structs
       if (member_type.isStruct()) {
-        handleScope(type, member.name);
+        handleScope(member_type, member.name);
       }
     }
   }
