@@ -11,6 +11,7 @@
 #include "NodeVisitor.h"
 #include "slang/text/SourceLocation.h"
 #include "slang/types/AllTypes.h"
+#include <filesystem>
 #include <fmt/core.h>
 #include <memory>
 #include <optional>
@@ -90,7 +91,7 @@ void ServerHandlers::didOpenHandler(
   AbsolutePath path = params.textDocument.uri.GetAbsolutePath();
 
   // Create a SourceBuffer from the original file
-  sources.addFile(path);
+  sources.addFile(fs::absolute(path.path));
 
   updateDiagnostics();
 }
@@ -103,7 +104,7 @@ void ServerHandlers::didModifyHandler(
   // Create a buffer from the new full content
   int latestChange = params.contentChanges.size() - 1;
   auto &latestContent = params.contentChanges[latestChange].text;
-  sources.modifyFile(path, latestContent);
+  sources.modifyFile(fs::absolute(path.path), latestContent);
 
   updateDiagnostics();
 }
