@@ -1,20 +1,20 @@
 #include <iostream>
 #include <mutex>
 
+#include "DiagnosticParser.h"
 #include "LibLsp/JsonRpc/Condition.h"
+#include "LibLsp/JsonRpc/Endpoint.h"
+#include "LibLsp/JsonRpc/RemoteEndPoint.h"
+#include "LibLsp/JsonRpc/stream.h"
 #include "LibLsp/lsp/ProtocolJsonHandler.h"
 #include "LibLsp/lsp/general/exit.h"
 #include "LibLsp/lsp/general/initialize.h"
 #include "LibLsp/lsp/general/initialized.h"
 #include "LibLsp/lsp/general/lsServerCapabilities.h"
 #include "LibLsp/lsp/general/lsTextDocumentClientCapabilities.h"
-#include "LibLsp/lsp/textDocument/declaration_definition.h"
 #include "LibLsp/lsp/textDocument/completion.h"
+#include "LibLsp/lsp/textDocument/declaration_definition.h"
 #include "LibLsp/lsp/workspace/did_change_configuration.h"
-#include "DiagnosticParser.h"
-#include "LibLsp/JsonRpc/Endpoint.h"
-#include "LibLsp/JsonRpc/RemoteEndPoint.h"
-#include "LibLsp/JsonRpc/stream.h"
 #include "dummyLog.h"
 #include "serverHandlers.h"
 
@@ -32,7 +32,7 @@ public:
     remote_end_point_.registerHandler([&](const td_initialize::request &req) {
       return handlers.initializeHandler(req);
     });
-    
+
     remote_end_point_.registerHandler([&](const td_completion::request &req) {
       auto ret = handlers.completionHandler(req);
       return ret;
@@ -50,7 +50,7 @@ public:
 
     remote_end_point_.registerHandler(
         [&](Notify_WorkspaceDidChangeConfiguration::notify &notify) {
-        handlers.configChange(notify);
+          handlers.configChange(notify);
         });
 
     remote_end_point_.registerHandler([&](Notify_Exit::notify &notify) {

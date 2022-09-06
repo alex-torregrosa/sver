@@ -106,17 +106,20 @@ void NodeVisitor::handleScope(const slang::Type &type,
   }
 }
 
-lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type, bool isMember) {
+lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type,
+                                          bool isMember) {
   if (type.isEnum()) {
     return lsCompletionItemKind::Enum;
   } else if (type.isClass()) {
     return lsCompletionItemKind::Class;
-  } else if (type.isStruct() || type.isPackedUnion() || type.isUnpackedUnion()) {
+  } else if (type.isStruct() || type.isPackedUnion() ||
+             type.isUnpackedUnion()) {
     return lsCompletionItemKind::Struct;
   } else if (type.isVirtualInterface()) {
     return lsCompletionItemKind::Interface;
   }
-  if(isMember) return lsCompletionItemKind::Field;
+  if (isMember)
+    return lsCompletionItemKind::Field;
   return lsCompletionItemKind::Variable;
 }
 

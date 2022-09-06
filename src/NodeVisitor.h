@@ -1,10 +1,10 @@
 #pragma once
+#include "LibLsp/lsp/lsp_completion.h"
 #include <flat_hash_map.hpp>
 #include <memory>
 #include <slang/symbols/ASTVisitor.h>
 #include <slang/symbols/ValueSymbol.h>
 #include <slang/text/SourceManager.h>
-#include "LibLsp/lsp/lsp_completion.h"
 #include <string_view>
 #include <vector>
 
@@ -35,22 +35,23 @@ public:
     visitDefault(t);
   }
   const std::map<string_view, syminfo> *getFileSymbols(std::string_view file);
-  const struct_info *getStructInfo(const std::string& name);
+  const struct_info *getStructInfo(const std::string &name);
 
   const std::vector<string_view> &getPackageList();
 
 private:
-  lsCompletionItemKind getKind(const slang::Type& type, bool isMember=false);
+  lsCompletionItemKind getKind(const slang::Type &type, bool isMember = false);
   std::string getTypeName(const slang::Type &type);
   void handleScope(const slang::Type &type, std::string_view sym_name);
 
   void handle_value(const slang::ValueSymbol &sym);
   void handle_pkg(const slang::PackageSymbol &sym);
   void handle_instance(const slang::InstanceSymbolBase &unit);
-  std::string cleanupDecl(const std::string& decl);
+  std::string cleanupDecl(const std::string &decl);
 
   std::shared_ptr<slang::SourceManager> sm;
-  slang::flat_hash_map<std::string, std::map<string_view, syminfo>> known_symbols;
+  slang::flat_hash_map<std::string, std::map<string_view, syminfo>>
+      known_symbols;
   slang::flat_hash_map<std::string, struct_info> known_structs;
   std::vector<string_view> known_packages;
   std::string last_toplevel;

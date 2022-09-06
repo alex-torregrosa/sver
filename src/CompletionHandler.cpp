@@ -110,7 +110,8 @@ bool CompletionHandler::complete_struct(const std::string &line,
 
   // Iterate the struct chain to get the last structinfo
   auto struct_i = nv->getStructInfo(symtype);
-  if(struct_i == nullptr) struct_i = nv->getStructInfo(std::string(base));
+  if (struct_i == nullptr)
+    struct_i = nv->getStructInfo(std::string(base));
 
   for (int i = 1; i < struct_path.size(); ++i) {
     auto act = struct_path[i];

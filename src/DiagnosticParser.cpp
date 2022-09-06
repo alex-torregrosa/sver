@@ -17,7 +17,7 @@ DiagnosticParser::getDiagnostics() {
 
 void DiagnosticParser::report(const slang::ReportedDiagnostic &diagnostic) {
   auto sm = this->sourceManager;
-  std::string rel_filename( sm->getFileName(diagnostic.location));
+  std::string rel_filename(sm->getFileName(diagnostic.location));
   auto filename = AbsolutePath(rel_filename).path;
 
   int line = sm->getLineNumber(diagnostic.location);

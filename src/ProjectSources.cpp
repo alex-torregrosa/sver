@@ -12,11 +12,10 @@ ProjectSources::ProjectSources() {
   dirty = false;
 }
 
-void ProjectSources::setRootPath(const fs::path& path) {
+void ProjectSources::setRootPath(const fs::path &path) {
   config.rootPath = fs::absolute(path);
   locateInitConfig(config.rootPath);
 }
-
 
 void ProjectSources::addFile(const fs::path &file_path, bool userLoaded) {
   auto res = files_map.find(file_path);
@@ -41,8 +40,8 @@ void ProjectSources::addFile(const fs::path &file_path, bool userLoaded) {
     locateInitConfig(file_path);
 }
 
-void ProjectSources::addFile(const fs::path &file_path, std::string_view contents,
-                             bool userLoaded) {
+void ProjectSources::addFile(const fs::path &file_path,
+                             std::string_view contents, bool userLoaded) {
   auto res = files_map.find(file_path);
   if (res == files_map.end()) {
     file_info info;
@@ -80,8 +79,7 @@ std::shared_ptr<slang::SourceManager> ProjectSources::getSourceManager() {
   return sm;
 }
 
-const std::string_view
-ProjectSources::getFileContents(const fs::path &fpath) {
+const std::string_view ProjectSources::getFileContents(const fs::path &fpath) {
   // Try to find it in the locally modified files
   auto res_f = files_map.find(fpath);
   if (res_f != files_map.end()) {
@@ -310,7 +308,8 @@ void ProjectSources::setConfig(ServerConfig newConfig) {
   if (!newConfig.includePaths.empty())
     config.include_directories.clear();
   for (std::string p : newConfig.includePaths) {
-    if(!fs::exists(p)) continue;
+    if (!fs::exists(p))
+      continue;
     config.include_directories.insert(fs::absolute(p));
   }
 
@@ -318,15 +317,16 @@ void ProjectSources::setConfig(ServerConfig newConfig) {
   if (!newConfig.libraryPaths.empty())
     config.library_directories.clear();
   for (std::string p : newConfig.libraryPaths) {
-    if(!fs::exists(p)) continue;
+    if (!fs::exists(p))
+      continue;
     config.library_directories.insert(fs::absolute(p));
   }
 
   // Add Extra files to the compilation
   for (std::string p : newConfig.compileFiles) {
-    if(!fs::exists(p)) continue;
+    if (!fs::exists(p))
+      continue;
     auto newdir = fs::absolute(p);
     addFile(newdir, false);
   }
-
 }

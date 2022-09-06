@@ -9,17 +9,17 @@
 #include "LibLsp/lsp/workspace/did_change_configuration.h"
 #include "NodeVisitor.h"
 #include "ProjectSources.h"
+#include "ServerConfig.h"
 #include <array>
 #include <memory>
 #include <mutex>
 #include <slang/compilation/Compilation.h>
 #include <slang/diagnostics/DiagnosticEngine.h>
 #include <slang/text/SourceManager.h>
-#include "ServerConfig.h"
 
 #pragma once
 class ServerHandlers {
-  
+
 public:
   ServerHandlers(lsp::Log &log, RemoteEndPoint &remote_end_point);
   td_initialize::response initializeHandler(const td_initialize::request &req);

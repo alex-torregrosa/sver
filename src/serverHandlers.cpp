@@ -198,7 +198,8 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
   return resp;
 }
 
-void ServerHandlers::configChange(Notify_WorkspaceDidChangeConfiguration::notify &notify) {
+void ServerHandlers::configChange(
+    Notify_WorkspaceDidChangeConfiguration::notify &notify) {
   ServerConfigTop config;
   notify.params.settings.GetFromMap(config);
   sources.setConfig(config.verilog);
