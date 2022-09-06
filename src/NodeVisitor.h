@@ -11,7 +11,8 @@
 class NodeVisitor : public slang::ASTVisitor<NodeVisitor, true, true> {
 public:
   typedef struct {
-    std::string parent_name, type_name;
+    std::string parent_name, type_name, struct_name;
+    int arrayLevels;
     lsCompletionItemKind kind;
   } syminfo;
 

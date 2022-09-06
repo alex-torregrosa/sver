@@ -79,8 +79,10 @@ bool CompletionHandler::complete_struct(const std::string &line,
 
   // If the line does not have a dot, we are not completing a struct
   auto dotpos = line.find_last_of('.');
-  if (dotpos == std::string::npos)
+  if (dotpos == std::string::npos || dotpos == 0)
     return false;
+  // From now on, we'll return true, as we should have a struct,
+  // but we really don't, so there is no completion possible
 
   // Decompose the hierarchical reference
   // Line is cropped until the last dot
@@ -92,21 +94,39 @@ bool CompletionHandler::complete_struct(const std::string &line,
   }
   if (struct_path.size() == 0) {
     // This should not happen, since we have at least one dot
-    return false;
+    return true;
   }
 
   // Try to obtain the symbols visible from the file
   const auto fsymbols = nv->getFileSymbols(fname);
   if (fsymbols == nullptr)
-    return false;
+    return true;
 
   // Search the struct base symbol
   std::string_view base = struct_path[0];
+  // Count array levels and get start
+  int arrayStart, array_b, array_e;
+  array_b = 0;
+  array_e = 0;
+  for(char c : base) {
+      if(c == '[') array_b++;
+      else if(c == ']') array_e++;
+      if(!(array_b||array_e)) arrayStart++;
+  }
+  // Non-matching array operators, will not complete
+  if(array_b != array_e) return true;
+  base = base.substr(0, arrayStart);
+
   auto res = fsymbols->find(base);
   // Symbol not found
   if (res == fsymbols->end())
     return false;
-  const auto &symtype = res->second.type_name;
+  const auto &symtype = res->second.struct_name;
+
+  // Check that we have matching array levels, otherwise we are
+  // still in an array
+  if(array_b != res->second.arrayLevels) return true;
+  std::cerr<<"We do have a struct called " << symtype << std::endl;
 
   // Iterate the struct chain to get the last structinfo
   auto struct_i = nv->getStructInfo(symtype);

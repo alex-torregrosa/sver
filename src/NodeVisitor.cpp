@@ -3,6 +3,7 @@
 #include "slang/symbols/ValueSymbol.h"
 #include "slang/symbols/VariableSymbols.h"
 #include "slang/syntax/SyntaxPrinter.h"
+#include "slang/types/Type.h"
 #include <filesystem>
 #include <fmt/core.h>
 #include <memory>
@@ -99,7 +100,8 @@ void NodeVisitor::handleScope(const slang::Type &type,
       // Push it to the list
       memberlist.emplace_back(m_info);
       // Recurse structs
-      if (member_type.isStruct()) {
+      if (member_type.isStruct() || member_type.isClass() ||
+          member_type.isPackedUnion() || member_type.isUnpackedUnion()) {
         handleScope(member_type, member.name);
       }
     }
@@ -136,11 +138,20 @@ void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
     info.parent_name = def->name;
   }
 
-  if (type.isStruct() || type.isClass() || type.isPackedUnion() ||
-      type.isUnpackedUnion())
-    handleScope(type, sym.name);
+  // Get to the bottom of the array
+  const slang::Type *subtype = &type;
+  info.arrayLevels = 0;
+  while (subtype->isArray()) {
+    info.arrayLevels++;
+    subtype = subtype->getArrayElementType();
+  }
+
+  if (subtype->isStruct() || subtype->isClass() || subtype->isPackedUnion() ||
+      subtype->isUnpackedUnion())
+    handleScope(*subtype, sym.name);
 
   info.type_name = getTypeName(type);
+  info.struct_name = subtype->name.empty() ? info.type_name : subtype->name;
   info.kind = getKind(type);
 
   known_symbols[fpath].emplace(std::make_pair(sym.name, info));

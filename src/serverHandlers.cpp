@@ -187,7 +187,7 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
       if (colno <= line.length()) {
         line = line.substr(0, colno);
       }
-      auto start = line.find_last_of(" \t\f\v+-*/&|^()[]?:@!~");
+      auto start = line.find_last_of(" \t\f\v+-*/&|^?@!~");
       if (start != std::string::npos) {
         line = line.substr(start + 1);
       }
