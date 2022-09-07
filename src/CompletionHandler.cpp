@@ -106,21 +106,8 @@ bool CompletionHandler::complete_struct(const std::string &line,
   // Search the struct base symbol
   std::string_view base = struct_path[0];
   // Count array levels and get start
-  int arrayStart, array_b, array_e;
-  array_b = 0;
-  array_e = 0;
-  for (char c : base) {
-    if (c == '[')
-      array_b++;
-    else if (c == ']')
-      array_e++;
-    if (!(array_b || array_e))
-      arrayStart++;
-  }
-  // Non-matching array operators, will not complete
-  if (array_b != array_e)
-    return true;
-  base = base.substr(0, arrayStart);
+  if(arrayLevels > 0)
+    base = base.substr(0, base.find_first_of('['));
 
   auto res = fsymbols->find(base);
   // Symbol not found
@@ -130,7 +117,7 @@ bool CompletionHandler::complete_struct(const std::string &line,
 
   // Check that we have matching array levels, otherwise we are
   // still in an array
-  if (array_b != res->second.arrayLevels)
+  if (arrayLevels != res->second.arrayLevels)
     return true;
   std::cerr << "We do have a struct called " << symtype << std::endl;
 
