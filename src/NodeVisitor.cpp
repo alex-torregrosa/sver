@@ -128,6 +128,7 @@ lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type,
 void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
   // We found a symbol!! q
   auto fname = sm->getFileName(sym.location);
+  if(fname.empty()) return;
   auto fpath = fs::canonical(fname);
   auto def = sym.getDeclaringDefinition();
   auto &type = sym.getType();
