@@ -6,7 +6,7 @@ CompletionHandler::CompletionHandler(std::shared_ptr<NodeVisitor> node_visitor)
 
 void CompletionHandler::complete(const std::string &line,
                                  std::string_view fname,
-                                 td_completion::response &resp) {
+                                 td_completion::response &resp, int arrayLevels) {
   if (line[0] == '$') {
     // We are autocompleting a system function
     // Give the full list
@@ -15,7 +15,7 @@ void CompletionHandler::complete(const std::string &line,
   }
 
   // Try to complete the struct, if it succeeds, we are done
-  if (complete_struct(line, fname, resp.result.items))
+  if (complete_struct(line, fname, resp.result.items, arrayLevels))
     return;
 
   /***************************
@@ -69,7 +69,8 @@ void CompletionHandler::add_package_symbols(
 
 bool CompletionHandler::complete_struct(const std::string &line,
                                         std::string_view fname,
-                                        std::vector<lsCompletionItem> &items) {
+                                        std::vector<lsCompletionItem> &items,
+                                        int arrayLevels) {
   /***************************
    *   STRUCT COMPLETION    *
    ***************************/
@@ -108,13 +109,17 @@ bool CompletionHandler::complete_struct(const std::string &line,
   int arrayStart, array_b, array_e;
   array_b = 0;
   array_e = 0;
-  for(char c : base) {
-      if(c == '[') array_b++;
-      else if(c == ']') array_e++;
-      if(!(array_b||array_e)) arrayStart++;
+  for (char c : base) {
+    if (c == '[')
+      array_b++;
+    else if (c == ']')
+      array_e++;
+    if (!(array_b || array_e))
+      arrayStart++;
   }
   // Non-matching array operators, will not complete
-  if(array_b != array_e) return true;
+  if (array_b != array_e)
+    return true;
   base = base.substr(0, arrayStart);
 
   auto res = fsymbols->find(base);
@@ -125,8 +130,9 @@ bool CompletionHandler::complete_struct(const std::string &line,
 
   // Check that we have matching array levels, otherwise we are
   // still in an array
-  if(array_b != res->second.arrayLevels) return true;
-  std::cerr<<"We do have a struct called " << symtype << std::endl;
+  if (array_b != res->second.arrayLevels)
+    return true;
+  std::cerr << "We do have a struct called " << symtype << std::endl;
 
   // Iterate the struct chain to get the last structinfo
   auto struct_i = nv->getStructInfo(symtype);

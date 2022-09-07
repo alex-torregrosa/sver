@@ -7,7 +7,7 @@ class CompletionHandler {
 public:
   CompletionHandler(std::shared_ptr<NodeVisitor> node_visitor);
   void complete(const std::string &line, std::string_view fname,
-                td_completion::response &resp);
+                td_completion::response &resp, int arrayLevels);
 
 private:
   void add_sysfuncs(std::vector<lsCompletionItem> &items);
@@ -17,7 +17,7 @@ private:
   void add_package_symbols(std::vector<lsCompletionItem> &items);
 
   bool complete_struct(const std::string &line, std::string_view fname,
-                       std::vector<lsCompletionItem> &items);
+                       std::vector<lsCompletionItem> &items, int arrayLevels);
 
   std::shared_ptr<NodeVisitor> nv;
 

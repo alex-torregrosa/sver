@@ -191,8 +191,34 @@ ServerHandlers::completionHandler(const td_completion::request &req) {
       if (start != std::string::npos) {
         line = line.substr(start + 1);
       }
+
+      // Get rid of completed array slices
+      int arrayStart, array_b, array_e;
+      array_b = 0;
+      array_e = 0;
+      for (char c : line) {
+        if (c == '[')
+          array_b++;
+        else if (c == ']') {
+          if (array_b > array_e)
+            array_e++;
+          else
+            return resp; // Badly formatted line
+        }
+        if (!(array_b || array_e))
+          arrayStart++;
+      }
+
+      int arrayLevels = 0;
+      if (array_b > array_e) {
+        // Writing inside array index, cut previous part
+        start = line.find_last_of('[');
+        line = line.substr(start + 1);
+      } else
+        arrayLevels = array_b;
+
       // Run the completion
-      completer.complete(line, fname, resp);
+      completer.complete(line, fname, resp, arrayLevels);
     }
   }
   return resp;
