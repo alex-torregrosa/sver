@@ -15,17 +15,28 @@ NodeVisitor::NodeVisitor(std::shared_ptr<slang::SourceManager> sm) : sm(sm) {}
 
 void NodeVisitor::handle_pkg(const slang::PackageSymbol &sym) {
   auto fname = sm->getFileName(sym.location);
-  fs::path fpath(fname);
-  last_toplevel = fs::canonical(fpath).string();
+  fs::path fpath = fs::canonical(fname);
+  last_toplevel = fpath.string();
 
   known_packages.push_back(last_toplevel);
+
+  file2scopes[fpath].emplace(sym.name);
 }
 
 void NodeVisitor::handle_instance(const slang::InstanceSymbolBase &unit) {
   auto fname = sm->getFileName(unit.location);
-  fs::path fpath(fname);
+  fs::path fpath = fs::canonical(fname);
 
-  last_toplevel = fs::canonical(fpath).string();
+  file2scopes[fpath].emplace(unit.name);
+}
+
+const std::set<std::string> &NodeVisitor::getFileScopes(const fs::path &file) {
+  return file2scopes[file];
+}
+
+const std::set<std::string> &
+NodeVisitor::getScopeTypes(std::string_view scope) {
+  return known_types[scope];
 }
 
 std::string NodeVisitor::getTypeName(const slang::Type &type) {
@@ -125,10 +136,24 @@ lsCompletionItemKind NodeVisitor::getKind(const slang::Type &type,
   return lsCompletionItemKind::Variable;
 }
 
+void NodeVisitor::handle_type(const slang::Type &sym) {
+  const auto scope = sym.getParentScope();
+  if (scope == nullptr)
+    return;
+  const auto &scopesym = scope->asSymbol();
+  if (scopesym.name.empty())
+    return;
+  if (sym.name.empty())
+    return;
+
+  known_types[scopesym.name].emplace(sym.name);
+}
+
 void NodeVisitor::handle_value(const slang::ValueSymbol &sym) {
   // We found a symbol!! q
   auto fname = sm->getFileName(sym.location);
-  if(fname.empty()) return;
+  if (fname.empty())
+    return;
   auto fpath = fs::canonical(fname);
   auto def = sym.getDeclaringDefinition();
   auto &type = sym.getType();

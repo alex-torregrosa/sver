@@ -1,5 +1,6 @@
 #include "CompletionHandler.h"
 #include "LibLsp/lsp/lsp_completion.h"
+#include <optional>
 
 CompletionHandler::CompletionHandler(std::shared_ptr<NodeVisitor> node_visitor)
     : nv(node_visitor) {}
@@ -44,6 +45,20 @@ void CompletionHandler::add_file_symbols(std::string_view fname,
       it.documentation = std::make_pair(item.parent_name, std::nullopt);
       it.kind = item.kind;
       items.push_back(it);
+    }
+  }
+
+  const auto& filescopes = nv->getFileScopes(fs::canonical(fname));
+  for(const auto& scope : filescopes) {
+      std::cerr<< "Got Scope " << scope << std::endl;
+    const auto& scopeTypes = nv->getScopeTypes(scope);
+    for(const auto& tname : scopeTypes) {
+      std::cerr<< "  t " << tname << std::endl;
+        lsCompletionItem it;
+        it.label = tname;
+        it.documentation = std::make_pair(scope, std::nullopt);
+        it.kind = lsCompletionItemKind::Reference;
+        items.push_back(it);
     }
   }
 }
